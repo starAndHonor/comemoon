@@ -76,23 +76,28 @@ fn evaluate(script : String, files : Files) -> Int {
 
 ```
 comemoon/
-├── moon.mod                    # rule(comemo-gen)
-├── gen/                        # 生成器本体(MoonBit CLI)
-│   ├── main.mbt                #   读 #comemo.* 标记 → 产出样板 .mbt
-│   └── codegen.mbt
-├── src/
-│   ├── user_code.mbt           # 用户侧:标记 + 普通代码
-│   ├── comemo_gen.mbt          # dev_build 生成(提交仓库)
-│   └── runtime/
-│       ├── cache.mbt           # Cache / memoize / evict
-│       ├── tracked.mbt         # Tracked / tracked() helper / attach
-│       ├── tree.mbt            # CallTree
-│       ├── input.mbt           # Input / Multi
-│       ├── constraint.mbt      # Constraint / CallSequence
-│       ├── hash.mbt            # SipHash13 128-bit
-│       ├── accelerate.mbt      # 加速器
-│       └── testing.mbt         # hit/miss oracle
-└── cmd/main/moon.pkg           # dev_build(rule, input, output)
+├── moon.mod                    # 模块配置 + rule(comemo-gen)
+├── lib/                        # 运行时库(唯一包)
+│   ├── moon.pkg                #   import + dev_build(comemo-gen)
+│   ├── siphash.mbt             #   SipHash-1-3 128-bit 算法
+│   ├── siphash_stream.mbt      #   增量 SipHash
+│   ├── hash.mbt                #   Rust Hash 编码 + RustHashable trait
+│   ├── tree.mbt                #   CallTree
+│   ├── constraint.mbt          #   CallSequence / Constraint / Recorder
+│   ├── tracked.mbt             #   Tracked 包装
+│   ├── cache.mbt               #   Cache / evict
+│   ├── memoize.mbt             #   memoize 入口 + Input
+│   ├── accelerate.mbt          #   验证加速器
+│   ├── testing.mbt             #   hit/miss oracle
+│   ├── util.mbt                #   parse_ok 等辅助
+│   ├── test_types.mbt          #   测试用类型(主包定义,因测试不能 impl trait)
+│   ├── user_tracked.mbt        #   用户侧:#comemo.track 标记 + 普通方法
+│   ├── comemo_gen.mbt          #   dev_build 生成(提交仓库)
+│   └── *_test.mbt / *_wbtest.mbt  # 测试(同包)
+├── gen/gen.py                  # 代码生成器(Python)
+├── bench/                      # 基准:run_bench.sh + 报告
+├── cmd/main/                   # 可执行示例(calc 依赖图 demo)
+└── refs/comemo/                # Rust 参考实现(行为契约)
 ```
 
 ## 生态先例

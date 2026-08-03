@@ -41,15 +41,19 @@ against it directly without running the generator.
 
 ## Layout
 
-- `hash.mbt` — 64-bit deterministic hashing (dual-seed builtin Hasher)
-- `constraint.mbt` — `CallSequence` (dedup) + `Constraint` (immutable/mutable)
-- `tree.mbt` — `CallTree` trie + slab arena
-- `tracked.mbt` — `Tracked` wrapper (closure recorder, MergedSink chaining)
-- `cache.mbt` — per-function `Cache` with age-based eviction
-- `memoize.mbt` — `memoize` entry (lookup/attach/insert)
-- `accelerate.mbt` — per-instance validation accelerator
-- `gen/gen.py` — `#comemo.track` code generator
-- `bench/` — performance comparisons vs the Rust reference
+- `lib/` — the runtime library (single package)
+  - `siphash.mbt` — SipHash-1-3 128-bit (byte-identical to Rust comemo)
+  - `hash.mbt` — Rust std `Hash` encodings + `RustHashable` trait
+  - `tree.mbt` — `CallTree` trie + slab arena
+  - `constraint.mbt` — `CallSequence` (dedup) + `Constraint` (immutable/mutable)
+  - `tracked.mbt` — `Tracked` wrapper (closure recorder, MergedSink chaining)
+  - `cache.mbt` — per-function `Cache` with age-based eviction
+  - `memoize.mbt` — `memoize` entry (lookup/attach/insert)
+  - `accelerate.mbt` — per-instance validation accelerator
+  - `user_tracked.mbt` + `comemo_gen.mbt` — generator input / generated output
+- `gen/gen.py` — `#comemo.track` code generator (wired via `rule`/`dev_build`)
+- `bench/` — 5-scenario benchmark vs the Rust reference (`run_bench.sh`)
+- `cmd/main/` — calc dependency graph demo
 
 ## Docs
 

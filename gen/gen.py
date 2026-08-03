@@ -10,8 +10,8 @@ Usage:  python3 gen/gen.py [input] [output]
 import re
 import sys
 
-IN = sys.argv[1] if len(sys.argv) > 1 else "user_tracked.mbt"
-OUT = sys.argv[2] if len(sys.argv) > 2 else "comemo_gen.mbt"
+IN = sys.argv[1] if len(sys.argv) > 1 else "lib/user_tracked.mbt"
+OUT = sys.argv[2] if len(sys.argv) > 2 else "lib/comemo_gen.mbt"
 
 src = open(IN).read()
 

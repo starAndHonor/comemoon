@@ -1,7 +1,6 @@
 import {
   "moonbitlang/core/hashmap",
   "moonbitlang/core/array",
-  "moonbitlang/core/bench",
 }
 
 dev_build(

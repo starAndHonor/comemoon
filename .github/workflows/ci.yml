@@ -23,5 +23,5 @@ jobs:
         run: moon fmt --check
       - name: Regenerate and verify committed output
         run: |
-          python3 gen/gen.py user_tracked.mbt /tmp/comemo_gen_check.mbt
-          diff /tmp/comemo_gen_check.mbt comemo_gen.mbt
+          python3 gen/gen.py lib/user_tracked.mbt /tmp/comemo_gen_check.mbt
+          diff /tmp/comemo_gen_check.mbt lib/comemo_gen.mbt
