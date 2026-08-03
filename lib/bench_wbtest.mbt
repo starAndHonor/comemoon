@@ -33,7 +33,7 @@ fn s3_eval(script : String, files : FilesTracked) -> Int {
       fn(rec : Recorder[FilesCall]) -> Recorder[FilesCall]? {
         tracked.attach(rec)
       },
-      fn(c : FilesCall) -> UInt64 {
+      fn(c : FilesCall) -> UInt128 {
         match c {
           Read(path) =>
             tracked.validate(
@@ -41,7 +41,7 @@ fn s3_eval(script : String, files : FilesTracked) -> Int {
               fn(f : Files) -> String { f.read(path) },
               test_hash_str,
             )
-          Write(_, _) => 0
+          Write(_, _) => hash_zero()
         }
       },
       fn(_c : FilesCall) -> Unit { () },
@@ -82,7 +82,7 @@ fn s4_eval(script : String, files : FilesTracked) -> Int {
       fn(rec : Recorder[FilesCall]) -> Recorder[FilesCall]? {
         tracked.attach(rec)
       },
-      fn(c : FilesCall) -> UInt64 {
+      fn(c : FilesCall) -> UInt128 {
         match c {
           Read(path) =>
             tracked.validate(
@@ -90,7 +90,7 @@ fn s4_eval(script : String, files : FilesTracked) -> Int {
               fn(f : Files) -> String { f.read(path) },
               test_hash_str,
             )
-          Write(_, _) => 0
+          Write(_, _) => hash_zero()
         }
       },
       fn(_c : FilesCall) -> Unit { () },

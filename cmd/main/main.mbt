@@ -14,7 +14,7 @@ fn eval(script : String, files : @lib.FilesTracked) -> Int {
       ) -> @lib.Recorder[@lib.FilesCall]? {
         tracked.attach(rec)
       },
-      fn(c : @lib.FilesCall) -> UInt64 {
+      fn(c : @lib.FilesCall) -> @lib.UInt128 {
         match c {
           Read(path) =>
             tracked.validate(
@@ -22,7 +22,7 @@ fn eval(script : String, files : @lib.FilesTracked) -> Int {
               fn(f : @lib.Files) -> String { f.read(path) },
               @lib.test_hash_str,
             )
-          Write(_, _) => 0
+          Write(_, _) => @lib.hash_zero()
         }
       },
       fn(_c : @lib.FilesCall) -> Unit { () },

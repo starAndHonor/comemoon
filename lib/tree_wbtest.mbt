@@ -5,7 +5,7 @@
 ///|
 /// An operation on the tree, mirroring Rust's `Op<C, T>`.
 enum Op {
-  Insert(UInt64, Array[(Int, UInt64)], String)
+  Insert(Int, Array[(Int, Int)], String)
   Retain(String)
   Manual(Int)
 }
@@ -17,24 +17,27 @@ enum Op {
 fn test_ops(ops : Array[Op]) -> Unit {
   let tree = CallTree::new()
   //| Model of the kept entries: (key, call->ret map, value)
-  let kept : Array[(UInt64, @hashmap.HashMap[IntCall, UInt64], String)] = []
+  let kept : Array[(UInt128, @hashmap.HashMap[IntCall, UInt128], String)] = []
 
   for op in ops {
     match op {
       Insert(key, seq, value) => {
+        let key128 : UInt128 = UInt128::{ hi: 0, lo: key.to_uint64() }
         let cs = CallSequence::new()
         seq.each(pair => {
           let (c, r) = pair
-          ignore(cs.insert(IntCall::I(c), r))
+          ignore(
+            cs.insert(IntCall::I(c), UInt128::{ hi: 0, lo: r.to_uint64() }),
+          )
         })
-        match tree.insert(key, cs, value) {
+        match tree.insert(key128, cs, value) {
           Ok(_) => {
-            let m : @hashmap.HashMap[IntCall, UInt64] = @hashmap.HashMap([])
+            let m : @hashmap.HashMap[IntCall, UInt128] = @hashmap.HashMap([])
             seq.each(pair => {
               let (c, r) = pair
-              m[IntCall::I(c)] = r
+              m[IntCall::I(c)] = UInt128::{ hi: 0, lo: r.to_uint64() }
             })
-            kept.push((key, m, value))
+            kept.push((key128, m, value))
           }
           Err(_) => ()
         }
@@ -118,22 +121,22 @@ test "call_tree_quickcheck" {
   let seed : Ref[Int] = { val: 42 }
 
   let tree = CallTree::new()
-  let kept : Array[(UInt64, @hashmap.HashMap[IntCall, UInt64], Int)] = []
+  let kept : Array[(UInt128, @hashmap.HashMap[IntCall, UInt128], Int)] = []
 
   let mut step = 0
   while step < 500 {
     let r = rand(seed)
     if r % 3 != 2 {
       //| Insert: random key, random call sequence, random output.
-      let key : UInt64 = rand(seed).to_uint64()
+      let key : UInt128 = UInt128::{ hi: 0, lo: rand(seed).to_uint64() }
       let n_calls = r % 4
       let cs = CallSequence::new()
-      let m : @hashmap.HashMap[IntCall, UInt64] = @hashmap.HashMap([])
+      let m : @hashmap.HashMap[IntCall, UInt128] = @hashmap.HashMap([])
       let mut j = 0
       let mut call_counter = seed.val
       while j < n_calls {
         call_counter = call_counter + 1
-        let ret : UInt64 = rand(seed).to_uint64()
+        let ret : UInt128 = UInt128::{ hi: 0, lo: rand(seed).to_uint64() }
         ignore(cs.insert(IntCall::I(call_counter), ret))
         m[IntCall::I(call_counter)] = ret
         j = j + 1
@@ -178,7 +181,9 @@ test "call_tree_quickcheck" {
           "FAIL: kept value not retrievable: step=" +
           step.to_string() +
           " key=" +
-          key.to_string() +
+          key.hi.to_string() +
+          "-" +
+          key.lo.to_string() +
           " value=" +
           value.to_string() +
           " got_some=" +

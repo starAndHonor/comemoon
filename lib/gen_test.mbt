@@ -11,7 +11,7 @@ let gen_eval_cache : Cache[FilesCall, Int] = Cache::new()
 //| what `Files::read` returns); the Phase 4 generator emits this wiring.
 
 ///|
-fn gen_oracle(t : Tracked[Files, FilesCall], c : FilesCall) -> UInt64 {
+fn gen_oracle(t : Tracked[Files, FilesCall], c : FilesCall) -> UInt128 {
   match c {
     Read(path) =>
       t.validate(
@@ -19,7 +19,7 @@ fn gen_oracle(t : Tracked[Files, FilesCall], c : FilesCall) -> UInt64 {
         fn(f : Files) -> String { f.read(path) },
         test_hash_str,
       )
-    Write(_, _) => 0
+    Write(_, _) => hash_zero()
   }
 }
 
@@ -33,7 +33,7 @@ fn gen_evaluate(script : String, files : FilesTracked) -> Int {
       fn(rec : Recorder[FilesCall]) -> Recorder[FilesCall]? {
         tracked.attach(rec)
       },
-      fn(c : FilesCall) -> UInt64 { gen_oracle(tracked, c) },
+      fn(c : FilesCall) -> UInt128 { gen_oracle(tracked, c) },
       fn(_c : FilesCall) -> Unit { () },
       fn(prev : Recorder[FilesCall]?) -> Unit { tracked.detach(prev) },
     ),

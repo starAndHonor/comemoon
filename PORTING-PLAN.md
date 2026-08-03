@@ -55,7 +55,7 @@ fn evaluate(script : String, files : Files) -> Int {
 | `tree.rs` (`CallTree`) | `tree.mbt` | 纯数据结构,直接移植(inner/leaves slab、edges map、NodeId isize 编码) |
 | `input.rs` (`Input`, `Multi`) | `input.mbt` | 泛型元组直接支持 arity 0-N(MoonBit 原生元组) |
 | `constraint.rs` (`Constraint`, `CallSequence`) | `constraint.mbt` | 纯数据结构,直接移植 |
-| `hash.rs` (SipHash13 128-bit) | `hash.mbt` + `siphash.mbt` | **完整复刻**:实现 SipHash-1-3 128-bit 算法(rotl/compress/finalize,字节级一致)+ Rust std `Hash` 编码(u64/i64 LE 字节、str=utf8+0xff、bool=1字节、enum=usize discriminant+字段)。黄金值测试与 Rust 输出完全一致。 |
+| `hash.rs` (SipHash13 128-bit) | `hash.mbt` + `murmur3_*.mbt` | **murmur3 x64_128**(vendored from moonbit-community/murmur3):128-bit `UInt128{hi,lo}` 值类型,快 ~1.7x,不再与 Rust 字节一致(进程内 hash,一致性非必需)。编码辅助(write_rust_*/append_*)保留。 |
 | `accelerate.rs` | `accelerate.mbt` | 全局 `Ref` 数组替代 RwLock + AtomicUsize |
 | `testing.rs` (hit/miss oracle) | `testing.mbt` | 全局 `Ref[Bool]`;注意 Rust 测试全 `#[serial]`,MoonBit 无等价物,需 per-test 重置 |
 

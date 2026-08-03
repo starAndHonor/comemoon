@@ -20,14 +20,13 @@
 
 ///|
 /// 64-bit hash (low half of the 128-bit SipHash13).
-pub fn[T : RustHashable] hash(value : T) -> UInt64 {
-  let (h1, _h2) = value.rust_hash()
-  h1
+pub fn[T : RustHashable] hash(value : T) -> UInt128 {
+  value.rust_hash()
 }
 
 ///|
 /// Full 128-bit SipHash13 as (low, high) u64s.
-pub fn[T : RustHashable] hash128(value : T) -> (UInt64, UInt64) {
+pub fn[T : RustHashable] hash128(value : T) -> UInt128 {
   value.rust_hash()
 }
 
@@ -35,75 +34,96 @@ pub fn[T : RustHashable] hash128(value : T) -> (UInt64, UInt64) {
 
 ///|
 /// encoding into `bytes`.
-pub trait RustHashable {
-  fn write_rust(Self, Array[Byte]) -> Unit
-  fn rust_hash(Self) -> (UInt64, UInt64) = _
+
+///|
+/// murmur3 128-bit of a byte array (the core hashing primitive).
+pub fn hash_bytes(bytes : Array[Byte]) -> UInt128 {
+  let b : Bytes = Bytes::from_array(bytes)
+  sum128(b)
 }
 
 ///|
-/// Default: hash = SipHash13 over the streamed Rust encoding.
-impl RustHashable with fn rust_hash(self) -> (UInt64, UInt64) {
+/// Zero UInt128 (test oracles that never hash).
+pub fn hash_zero() -> UInt128 {
+  UInt128::{ hi: 0, lo: 0 }
+}
+
+///|
+/// Combine two 128-bit hashes into one (order-sensitive).
+pub fn hash_combine2(a : UInt128, b : UInt128) -> UInt128 {
+  let bytes : Array[Byte] = []
+  append_u64_le(bytes, a.hi)
+  append_u64_le(bytes, a.lo)
+  append_u64_le(bytes, b.hi)
+  append_u64_le(bytes, b.lo)
+  hash_bytes(bytes)
+}
+
+///|
+pub trait RustHashable {
+  fn write_rust(Self, Array[Byte]) -> Unit
+  fn rust_hash(Self) -> UInt128 = _
+}
+
+///|
+/// Default: hash = murmur3 128-bit over the streamed encoding.
+impl RustHashable with fn rust_hash(self) -> UInt128 {
   let bytes : Array[Byte] = []
   self.write_rust(bytes)
-  sip13_128(bytes, (0, 0))
+  hash_bytes(bytes)
 }
 
 ///|
 /// Concrete hashes for core types (cannot impl RustHashable).
-pub fn hash_int(v : Int) -> UInt64 {
-  let (h1, _) = sip13_128_u64(v.to_int64().reinterpret_as_uint64(), (0, 0))
-  h1
+pub fn hash_int(v : Int) -> UInt128 {
+  let bytes : Array[Byte] = []
+  append_i64_le(bytes, v.to_int64())
+  hash_bytes(bytes)
 }
 
 ///|
-pub fn hash_string(s : String) -> UInt64 {
-  let st = SipState::new()
-  //| Rust str: write(utf8 bytes) + write_u8(0xff)
+pub fn hash_string(s : String) -> UInt128 {
+  let bytes : Array[Byte] = []
+  //| UTF-8 bytes + 0xff terminator.
   let mut i = 0
   for ch in s.iter() {
     let cp = ch.to_int()
     if cp <= 0x7F {
-      st.write_byte(cp.to_byte())
+      bytes.push(cp.to_byte())
     } else if cp <= 0x7FF {
-      st.write_byte((0xC0 | ((cp >> 6) & 0x1F)).to_byte())
-      st.write_byte((0x80 | (cp & 0x3F)).to_byte())
+      bytes.push((0xC0 | ((cp >> 6) & 0x1F)).to_byte())
+      bytes.push((0x80 | (cp & 0x3F)).to_byte())
     } else {
-      st.write_byte((0xE0 | ((cp >> 12) & 0x0F)).to_byte())
-      st.write_byte((0x80 | ((cp >> 6) & 0x3F)).to_byte())
-      st.write_byte((0x80 | (cp & 0x3F)).to_byte())
+      bytes.push((0xE0 | ((cp >> 12) & 0x0F)).to_byte())
+      bytes.push((0x80 | ((cp >> 6) & 0x3F)).to_byte())
+      bytes.push((0x80 | (cp & 0x3F)).to_byte())
     }
   }
-  st.write_byte((255).to_byte())
-  let (h1, _) = st.finish()
-  h1
+  bytes.push((255).to_byte())
+  hash_bytes(bytes)
 }
 
 ///|
-pub fn hash_unit() -> UInt64 {
-  let bytes : Array[Byte] = [(255).to_byte()]
-  let (h1, _) = sip13_128(bytes, (0, 0))
-  h1
+pub fn hash_unit() -> UInt128 {
+  hash_bytes([(255).to_byte()])
 }
 
 ///|
 /// For use as a ret-hash function on `Unit` values (call_mut).
-pub fn hash_unit_value(_v : Unit) -> UInt64 {
+pub fn hash_unit_value(_v : Unit) -> UInt128 {
   hash_unit()
 }
 
 ///|
-pub fn hash_bool(v : Bool) -> UInt64 {
-  let bytes : Array[Byte] = [(if v { 1 } else { 0 }).to_byte()]
-  let (h1, _) = sip13_128(bytes, (0, 0))
-  h1
+pub fn hash_bool(v : Bool) -> UInt128 {
+  hash_bytes([(if v { 1 } else { 0 }).to_byte()])
 }
 
 ///|
-pub fn hash_char(c : Char) -> UInt64 {
+pub fn hash_char(c : Char) -> UInt128 {
   let bytes : Array[Byte] = []
   write_rust_char(bytes, c)
-  let (h1, _) = sip13_128(bytes, (0, 0))
-  h1
+  hash_bytes(bytes)
 }
 
 ///|
@@ -192,51 +212,57 @@ fn bytes_of_string_without_term(s : String) -> Array[Byte] {
 
 ///|
 /// path instead.
-pub fn test_hash_int(v : Int) -> UInt64 {
-  v.to_uint64()
+pub fn test_hash_int(v : Int) -> UInt128 {
+  hash_int(v)
 }
 
 ///|
-pub fn test_hash_int64(v : Int64) -> UInt64 {
-  v.to_uint64()
+pub fn test_hash_int64(v : Int64) -> UInt128 {
+  let b : Array[Byte] = []
+  append_i64_le(b, v)
+  hash_bytes(b)
 }
 
 ///|
-pub fn test_hash_bool(v : Bool) -> UInt64 {
-  if v {
-    1
-  } else {
-    0
-  }
+pub fn test_hash_bool(v : Bool) -> UInt128 {
+  hash_bool(v)
 }
 
 ///|
-pub fn test_hash_str(v : String) -> UInt64 {
+pub fn test_hash_str(v : String) -> UInt128 {
   hash_string(v)
 }
 
 ///|
-pub fn test_hash_unit(v : Unit) -> UInt64 {
+pub fn test_hash_unit(v : Unit) -> UInt128 {
   hash_unit()
 }
 
 ///|
 /// Hash an Option by its tag + inner (deterministic, test-only).
-pub fn[T] test_hash_opt(v : T?, inner : (T) -> UInt64) -> UInt64 {
+pub fn[T] test_hash_opt(v : T?, inner : (T) -> UInt128) -> UInt128 {
   match v {
-    None => 0
-    Some(x) => (inner(x) << 1) | 1
+    None => hash_unit()
+    Some(x) => {
+      let h = inner(x)
+      let bytes : Array[Byte] = []
+      append_u64_le(bytes, h.hi)
+      append_u64_le(bytes, h.lo)
+      hash_bytes(bytes)
+    }
   }
 }
 
 ///|
 /// Hash an array by folding (deterministic, test-only).
-pub fn[T] test_hash_array(v : Array[T], inner : (T) -> UInt64) -> UInt64 {
-  let mut acc : UInt64 = 0
+pub fn[T] test_hash_array(v : Array[T], inner : (T) -> UInt128) -> UInt128 {
+  let bytes : Array[Byte] = []
   for x in v {
-    acc = acc * 31 + inner(x)
+    let h = inner(x)
+    append_u64_le(bytes, h.hi)
+    append_u64_le(bytes, h.lo)
   }
-  acc
+  hash_bytes(bytes)
 }
 
 ///| A placeholder Call type for pure-argument functions (no tracked params).

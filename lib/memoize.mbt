@@ -20,9 +20,9 @@
 ///|
 ///   (mirrors `Input::call_mut`, used on cache hit).
 pub struct Input[C] {
-  key : () -> UInt64
+  key : () -> UInt128
   attach : (Recorder[C]) -> Recorder[C]?
-  oracle : (C) -> UInt64
+  oracle : (C) -> UInt128
   replay_mut : (C) -> Unit
   detach : (Recorder[C]?) -> Unit
 }
@@ -34,9 +34,9 @@ pub struct Input[C] {
 ///|
 /// literal from outside the defining package).
 pub fn[C] Input::new(
-  key : () -> UInt64,
+  key : () -> UInt128,
   attach : (Recorder[C]) -> Recorder[C]?,
-  oracle : (C) -> UInt64,
+  oracle : (C) -> UInt128,
   replay_mut : (C) -> Unit,
   detach : (Recorder[C]?) -> Unit,
 ) -> Input[C] {
@@ -85,8 +85,8 @@ pub fn[C : RustHashable, O] memoize(
   let constraint = Constraint::new()
   let prev = (input.attach)(fn(
     call : C,
-    call_hash : UInt64,
-    ret : UInt64,
+    call_hash : UInt128,
+    ret : UInt128,
     mutable : Bool,
   ) -> Unit {
     constraint.record(call, call_hash, ret, mutable)
@@ -120,7 +120,7 @@ pub fn[C : RustHashable, O] memoize(
 /// Call type is unused (no tracking); key is computed by the caller.
 pub fn[C : RustHashable, O] memoize_pure(
   cache : Cache[C, O],
-  key : UInt64,
+  key : UInt128,
   enabled : Bool,
   func : () -> O,
 ) -> O {
@@ -128,7 +128,7 @@ pub fn[C : RustHashable, O] memoize_pure(
     register_miss()
     return func()
   }
-  let dummy_oracle : (C) -> UInt64 = fn(_c : C) -> UInt64 { 0 }
+  let dummy_oracle : (C) -> UInt128 = fn(_c : C) -> UInt128 { hash_zero() }
   let dummy_attach : (Recorder[C]) -> Recorder[C]? = fn(
     _r : Recorder[C],
   ) -> Recorder[C]? {

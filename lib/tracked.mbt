@@ -59,8 +59,8 @@ pub fn[A, C] Tracked::attach(
   let prev = self.record.val
   self.record.val = Some(fn(
     call : C,
-    call_hash : UInt64,
-    ret : UInt64,
+    call_hash : UInt128,
+    ret : UInt128,
     mutable : Bool,
   ) -> Unit {
     recorder(call, call_hash, ret, mutable)
@@ -103,7 +103,7 @@ pub fn[A, C : RustHashable, R] Tracked::call(
   self : Tracked[A, C],
   call : C,
   f : (A) -> R,
-  ret_hash : (R) -> UInt64,
+  ret_hash : (R) -> UInt128,
 ) -> R {
   let ret = f(self.value.val)
   match self.record.val {
@@ -123,11 +123,11 @@ pub fn[A, C : RustHashable, R] Tracked::call_mut(
   self : Tracked[A, C],
   call : C,
   f : (A) -> R,
-  _ret_hash : (R) -> UInt64,
+  _ret_hash : (R) -> UInt128,
 ) -> R {
   let ret = f(self.value.val)
   match self.record.val {
-    Some(rec) => rec(call, hash(call), 0, true)
+    Some(rec) => rec(call, hash(call), hash_unit(), true)
     None => ()
   }
   ret
@@ -150,8 +150,8 @@ pub fn[A, C : RustHashable, R] Tracked::validate(
   self : Tracked[A, C],
   call : C,
   f : (A) -> R,
-  ret_hash : (R) -> UInt64,
-) -> UInt64 {
+  ret_hash : (R) -> UInt128,
+) -> UInt128 {
   let call_hash = hash(call)
   match accelerator_get(self.id, call_hash) {
     Some(ret) => ret

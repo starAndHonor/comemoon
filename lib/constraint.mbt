@@ -11,9 +11,9 @@
 /// `next` consumes in order; `extract` consumes by call hash.
 pub struct CallSequence[C] {
   /// The raw calls. In order, but deduplicated via the `map`.
-  vec : Array[(C, UInt64)?]
+  vec : Array[(C, UInt128)?]
   /// A map from hashes of calls to the indices in the vector.
-  map : @hashmap.HashMap[UInt64, Int]
+  map : @hashmap.HashMap[UInt128, Int]
   /// A cursor for iteration in `next`.
   mut cursor : Int
 }
@@ -34,7 +34,7 @@ pub fn[C] CallSequence::new() -> CallSequence[C] {
 pub fn[C : RustHashable] CallSequence::insert(
   self : CallSequence[C],
   call : C,
-  ret : UInt64,
+  ret : UInt128,
 ) -> Bool {
   let h = hash(call)
   match self.map.get(h) {
@@ -63,7 +63,7 @@ pub fn[C : RustHashable] CallSequence::insert(
 
 ///|
 /// Retrieves the next call in order.
-pub fn[C] CallSequence::next(self : CallSequence[C]) -> (C, UInt64)? {
+pub fn[C] CallSequence::next(self : CallSequence[C]) -> (C, UInt128)? {
   while self.cursor < self.vec.length() {
     if self.vec[self.cursor] is Some(_) {
       let pair = self.vec[self.cursor]
@@ -82,7 +82,7 @@ pub fn[C] CallSequence::next(self : CallSequence[C]) -> (C, UInt64)? {
 pub fn[C : RustHashable] CallSequence::extract(
   self : CallSequence[C],
   call : C,
-) -> UInt64? {
+) -> UInt128? {
   let h = hash(call)
   match self.map.get(h) {
     None => None
@@ -117,7 +117,7 @@ pub struct Constraint[C] {
 
 ///|
 /// The type of a recording callback attached to a `Tracked` value.
-pub type Recorder[C] = (C, UInt64, UInt64, Bool) -> Unit
+pub type Recorder[C] = (C, UInt128, UInt128, Bool) -> Unit
 
 ///|
 /// Creates an empty constraint.
@@ -139,8 +139,8 @@ pub fn[C] Constraint::new() -> Constraint[C] {
 pub fn[C] Constraint::record(
   self : Constraint[C],
   call : C,
-  call_hash : UInt64,
-  ret : UInt64,
+  call_hash : UInt128,
+  ret : UInt128,
   mutable : Bool,
 ) -> Unit {
   if mutable {
@@ -163,8 +163,8 @@ pub fn[C] Constraint::take(self : Constraint[C]) -> (CallSequence[C], Array[C]) 
 fn[C] CallSequence::insert_with_hash(
   self : CallSequence[C],
   call : C,
-  h : UInt64,
-  ret : UInt64,
+  h : UInt128,
+  ret : UInt128,
 ) -> Bool {
   match self.map.get(h) {
     None => {
