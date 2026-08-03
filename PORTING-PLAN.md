@@ -61,6 +61,8 @@ fn evaluate(script : String, files : Files) -> Int {
 
 **必须保留的语义**:键 = 参数哈希 + 调用序列;顺序无关的不可变调用集验证;`TrackedMut` 可变调用命中后重放;`enabled` 绕过;age 驱逐(evict 同时清空加速器);debug panic(非确定性、不纯 tracked 方法);递归 memoize 命中同一缓存。
 
+**UInt128 迁移计划(2026-08-02)**:hash 从 64-bit SipHash13 切换到 128-bit murmur3(性能快 13x,保留 128-bit 键)。完整文件清单与分层推进步骤见 **`MIGRATION-UINT128.md`**。
+
 **Hash 复刻关键决策(2026-08-02)**:
 - 用户要求 hash 与 Rust 完全一致(非仅自洽)。实现 `siphash.mbt`(SipHash-1-3 128-bit,字节级复刻 siphasher crate)+ `hash.mbt`(Rust std Hash 编码)。
 - **MoonBit 禁止对核心类型(Int/String/Unit)实现用户自定义 trait** → 核心类型用顶层函数(`hash_int`/`hash_string`/`hash_unit`),自定义类型(Call 枚举)用 `RustHashable` trait(生成器产出 pub impl)。
