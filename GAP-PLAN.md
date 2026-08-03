@@ -1,6 +1,6 @@
 # 差距修复计划(comemo 最新版对齐)
 
-> 状态:已规划,2026-08-02。目标:对齐 comemo 最新 commit `5944487` 的 API 与行为,
+> 状态:✅ G1+G2 已完成,2026-08-02。G3-G6 记录为已知限制/不适用。目标:对齐 comemo 最新 commit `5944487` 的 API 与行为,
 > 补齐 Typst 实际使用暴露的 3 个缺口。参考实现:`refs/comemo`(最新),`refs/typst`(下游)。
 
 ## 差距清单(按优先级)
@@ -8,7 +8,7 @@
 | # | 缺口 | Typst 使用证据 | 影响 |
 |---|---|---|---|
 | G1 | **多 tracked 参数**(Multi 0-12 元组) | `compile_impl(world: Tracked<dyn World>, traced: Tracked<Traced>, ...)` | 高:多 tracked 场景无法表达 |
-| G2 | **trait 上 track** | `#[comemo::track] pub trait World`、`trait Introspector` | 高:Typst 核心类型是 trait |
+| G2 | **trait 上 track** | `#[comemo::track] pub trait World`、`trait Introspector` | ✅ 已完成 |
 | G3 | **带生命周期 impl** | `#[comemo::track] impl<'a> Context<'a>` | 中:生命周期参数 impl |
 | G4 | **TrackedMut 独立类型** | `sink.track_mut()`(downgrade/reborrow) | 低:语义已有(call_mut),缺 API |
 | G5 | **Constraint::validate 公开** | `constraint.validate(value)` | 低:内部已有加速器验证 |
@@ -64,7 +64,18 @@ impl RustHashable for WorldTracedCall { ... }  # 变体 tag + 内层 hash
 - `lib/comemo_gen.mbt`:生成产物
 - 测试:`gen_test.mbt` 加多参数场景(World + Traced)
 
-## G2:trait 上 track(✅ 已验证可行性)
+## G2:trait 上 track(✅ 已完成)
+
+### 实现(2026-08-02)
+- 生成器:`#comemo.track` 标记 trait → 泛型 surface `WorldTracked[T]` + `fn[T : World]` 约束 + 显式 `World::method(v, ...)` 调用
+- 测试:`g2_trait_track`(双实现共享跟踪逻辑)+ `g2_generated_trait_track`(生成 API)
+- 22/22 测试全绿
+
+### 经验
+- trait 方法格式 `fetch(Self, ...)`(无 fn 前缀)→ 生成器独立正则
+- 跨包 trait 泛型约束有可见性限制 → 测试内 trait 需同文件定义
+
+### 可行性验证记录
 
 ### 可行性验证(2026-08-02)
 独立测试确认:trait 方法经 `Tracked[T, WorldCall]` + `fn[T : World]` 泛型约束

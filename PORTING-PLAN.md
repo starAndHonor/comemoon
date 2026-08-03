@@ -63,6 +63,11 @@ fn evaluate(script : String, files : Files) -> Int {
 
 **UInt128 迁移计划(2026-08-02)**:hash 从 64-bit SipHash13 切换到 128-bit murmur3(性能快 13x,保留 128-bit 键)。完整文件清单与分层推进步骤见 **`MIGRATION-UINT128.md`**。
 
+**GAP 修复(2026-08-02,对齐 comemo 最新版)**:见 `GAP-PLAN.md`。
+- G1 多 tracked 参数 ✅:`Input2`/`memoize2` + 合并 Call 枚举(对齐 Typst `compile_impl` 的 world+traced)
+- G2 trait track ✅:`#comemo.track` 标记 trait → 泛型 surface `WorldTracked[T]`(对齐 Typst `World`/`Introspector`)
+- G3 生命周期不适用(MoonBit 值语义);G4-G6 记录为已知限制
+
 **Hash 复刻关键决策(2026-08-02)**:
 - 用户要求 hash 与 Rust 完全一致(非仅自洽)。实现 `siphash.mbt`(SipHash-1-3 128-bit,字节级复刻 siphasher crate)+ `hash.mbt`(Rust std Hash 编码)。
 - **MoonBit 禁止对核心类型(Int/String/Unit)实现用户自定义 trait** → 核心类型用顶层函数(`hash_int`/`hash_string`/`hash_unit`),自定义类型(Call 枚举)用 `RustHashable` trait(生成器产出 pub impl)。
