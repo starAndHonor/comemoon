@@ -44,3 +44,42 @@ pub fn FilesTracked::read(self : FilesTracked, path : String) -> String {
   }, hash_string)
 }
 
+///| Call enum for trait `DataSource` (generated).
+pub(all) enum DataSourceCall {
+  Fetch(String)
+  Size
+} derive(Hash, Eq)
+
+pub impl RustHashable for DataSourceCall with fn write_rust(self, bytes) {
+  match self {
+    Fetch(key) => {
+      append_u64_le(bytes, 0)
+      write_rust_string(bytes, key)
+    }
+    Size => {
+      append_u64_le(bytes, 1)
+    }
+  }
+}
+
+///| Generic surface wrapper for trait `DataSource` (generated).
+pub(all) struct DataSourceTracked[T] {
+  t : Tracked[T, DataSourceCall]
+}
+
+pub fn[T] DataSourceTracked::new(value : T) -> DataSourceTracked[T] {
+  { t: Tracked::new(value) }
+}
+
+pub fn[T : DataSource] DataSourceTracked::fetch(self : DataSourceTracked[T], key : String) -> Int {
+  self.t.call(DataSourceCall::Fetch(key), fn(v : T) -> Int {
+    DataSource::fetch(v, key)
+  }, hash_int)
+}
+
+pub fn[T : DataSource] DataSourceTracked::size(self : DataSourceTracked[T]) -> Int {
+  self.t.call(DataSourceCall::Size, fn(v : T) -> Int {
+    DataSource::size(v)
+  }, hash_int)
+}
+

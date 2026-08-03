@@ -29,3 +29,10 @@ pub fn Files::write(self : Files, path : String, text : String) -> Unit {
 pub fn Files::read(self : Files, path : String) -> String {
   self.map.get(path).unwrap_or("")
 }
+
+///|
+#comemo.track
+pub trait DataSource {
+  fn fetch(Self, key : String) -> Int
+  fn size(Self) -> Int
+}

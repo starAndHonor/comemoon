@@ -14,6 +14,26 @@ IN = sys.argv[1] if len(sys.argv) > 1 else "lib/user_tracked.mbt"
 OUT = sys.argv[2] if len(sys.argv) > 2 else "lib/comemo_gen.mbt"
 
 src = open(IN).read()
+def hash_fn_for_top(t):
+    return {
+        "String": "hash_string",
+        "Int": "hash_int",
+        "UInt64": "hash_int",
+        "Bool": "hash_bool",
+        "Unit": "hash_unit_value",
+    }.get(t, f"hash_{t.lower()}")
+
+def write_fn_for_top(t):
+    return {
+        "String": "write_rust_string",
+        "Int": "write_rust_i64",
+        "Int64": "write_rust_i64",
+        "UInt64": "write_rust_u64",
+        "Bool": "write_rust_bool",
+        "Char": "write_rust_char",
+    }.get(t, f"{t}::write_rust".replace("::", "."))
+
+
 
 # Find each `#comemo.track` block: marker + following struct + methods.
 # We split the file at marker lines; the tracked type name is the struct
@@ -140,6 +160,93 @@ for m in marker_re.finditer(src):
         out.append(f"  }}, {hash_fn_for(ret)})")
         out.append("}")
         out.append("")
+
+# --- Trait track: #comemo.track on a trait -> generic surface ----------------
+# Trait methods are declared as `fetch(Self, key : String) -> Int` (no fn
+# prefix in the trait body). Produces a generic surface WorldTracked[T].
+trait_marker_re = re.compile(
+    r"#comemo\.track\s*\n(?:pub(?:\s*\(open\))?\s+)?trait\s+(\w+)\s*\{"
+)
+trait_method_re = re.compile(r"(\w+)\(Self([^)]*)\)\s*->\s*([^\s{]+)")
+
+for tm in trait_marker_re.finditer(src):
+    trait_name = tm.group(1)
+    block_end = src.find("\n#comemo.", tm.end())
+    if block_end == -1:
+        block_end = len(src)
+    block = src[tm.end():block_end]
+
+    methods = []
+    for mm in trait_method_re.finditer(block):
+        mname = mm.group(1)
+        params = "self" + (mm.group(2) or "")
+        ret = mm.group(3)
+        methods.append((mname, params, ret))
+
+    if not methods:
+        continue
+
+    call_enum = trait_name + "Call"
+    out.append(f"///| Call enum for trait `{trait_name}` (generated).")
+    out.append(f"pub(all) enum {call_enum} {{")
+    for mname, params, _ret in methods:
+        args = [p.strip() for p in params.split(",") if p.strip() and "self" not in p]
+        types = [a.split(":")[1].strip() for a in args]
+        variant = mname[0].upper() + mname[1:]
+        if types:
+            out.append(f"  {variant}({', '.join(types)})")
+        else:
+            out.append(f"  {variant}")
+    out.append("} derive(Hash, Eq)")
+    out.append("")
+    out.append(f"pub impl RustHashable for {call_enum} with fn write_rust(self, bytes) {{")
+    out.append("  match self {")
+    for idx, (mname, params, _ret) in enumerate(methods):
+        variant = mname[0].upper() + mname[1:]
+        args = [p.strip() for p in params.split(",") if p.strip() and "self" not in p]
+        arg_names = [a.split(":")[0].strip() for a in args]
+        field_types = [a.split(":")[1].strip() for a in args]
+        if arg_names:
+            out.append(f"    {variant}({', '.join(arg_names)}) => {{")
+        else:
+            out.append(f"    {variant} => {{")
+        out.append(f"      append_u64_le(bytes, {idx})")
+        for (n, t) in zip(arg_names, field_types):
+            out.append(f"      {write_fn_for_top(t)}(bytes, {n})")
+        out.append("    }")
+    out.append("  }")
+    out.append("}")
+    out.append("")
+    surface = trait_name + "Tracked"
+    out.append(f"///| Generic surface wrapper for trait `{trait_name}` (generated).")
+    out.append(f"pub(all) struct {surface}[T] {{")
+    out.append(f"  t : Tracked[T, {call_enum}]")
+    out.append("}")
+    out.append("")
+    out.append(f"pub fn[T] {surface}::new(value : T) -> {surface}[T] {{")
+    out.append(f"  {{ t: Tracked::new(value) }}")
+    out.append("}")
+    out.append("")
+    for mname, params, ret in methods:
+        args = [p.strip() for p in params.split(",") if p.strip() and "self" not in p]
+        arg_names = [a.split(":")[0].strip() for a in args]
+        call_args = ", ".join(arg_names)
+        variant = mname[0].upper() + mname[1:]
+        ctor = variant if not arg_names else variant + "(" + call_args + ")"
+        wrapper_params = ", ".join(args)
+        if wrapper_params:
+            wrapper_params = ", " + wrapper_params
+        inner_args = ", ".join(arg_names)
+        out.append(f"pub fn[T : {trait_name}] {surface}::{mname}(self : {surface}[T]{wrapper_params}) -> {ret} {{")
+        out.append(f"  self.t.call({call_enum}::{ctor}, fn(v : T) -> {ret} {{")
+        if inner_args:
+            out.append(f"    {trait_name}::{mname}(v, {inner_args})")
+        else:
+            out.append(f"    {trait_name}::{mname}(v)")
+        out.append(f"  }}, {hash_fn_for_top(ret)})")
+        out.append("}")
+        out.append("")
+
 
 open(OUT, "w").write("\n".join(out) + "\n")
 print(f"generated {OUT}: {len(out)} lines")
