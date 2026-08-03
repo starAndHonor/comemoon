@@ -128,22 +128,23 @@ pub fn[C : RustHashable, O] memoize_pure(
     register_miss()
     return func()
   }
-  let dummy_oracle : (C) -> UInt128 = fn(_c : C) -> UInt128 { hash_zero() }
-  let dummy_attach : (Recorder[C]) -> Recorder[C]? = fn(
-    _r : Recorder[C],
-  ) -> Recorder[C]? {
-    None
+  //| Inline lookup (avoids per-call closure allocations of the generic
+  //| Input/memoize path, which cost ~30ns on the hot path).
+  let zero : UInt128 = hash_zero()
+  match cache.lookup(key, fn(_c : C) -> UInt128 { zero }) {
+    Some(entry) => {
+      register_hit()
+      return entry.output
+    }
+    None => ()
   }
-  let dummy_replay : (C) -> Unit = fn(_c : C) -> Unit { () }
-  let dummy_detach : (Recorder[C]?) -> Unit = fn(_p : Recorder[C]?) -> Unit {
-    ()
+  let output = func()
+  let constraint = Constraint::new()
+  //| No tracked calls in a pure fn: insert with empty sequence.
+  match cache.insert(key, constraint, output) {
+    Ok(_) => ()
+    Err(_) => ()
   }
-  let input = Input::new(
-    fn() { key },
-    dummy_attach,
-    dummy_oracle,
-    dummy_replay,
-    dummy_detach,
-  )
-  memoize(cache, input, enabled, func)
+  register_miss()
+  output
 }
