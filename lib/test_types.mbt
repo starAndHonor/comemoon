@@ -681,3 +681,102 @@ test "g5_memoize5_bundle_impl" {
     panic()
   }
 }
+
+//| ---------------------------------------------------------------------------
+//| G6: dyn World 等价 —— 泛型 surface + 泛型 compile 函数(运行时多态)
+//| ---------------------------------------------------------------------------
+
+//| 两个不同的 World 实现(等价 Rust 传不同 &dyn World)
+
+///|
+struct G6RealWorld {
+  data : String
+}
+
+///|
+struct G6FakeWorld {
+  data : String
+}
+
+///|
+impl GWorld for G6RealWorld with fn query(self, sel) {
+  self.data.length() + sel.length()
+}
+
+///|
+impl GWorld for G6RealWorld with fn font(self) {
+  2
+}
+
+///|
+impl GWorld for G6FakeWorld with fn query(self, sel) {
+  sel.length() * 10
+}
+
+///|
+impl GWorld for G6FakeWorld with fn font(self) {
+  1
+}
+
+//| 泛型 compile:等价 `compile(world: Tracked<dyn World>)` —— 任意实现
+
+///|
+fn[W : GWorld] g6_compile(world : GWorldTracked[W], script : String) -> Int {
+  let st = world.t
+  let cache : Cache[GWorldCall, Int] = Cache::new()
+  memoize(
+    cache,
+    Input::new(
+      fn() { hash_string(script) },
+      fn(rec : Recorder[GWorldCall]) -> Recorder[GWorldCall]? { st.attach(rec) },
+      fn(call : GWorldCall) -> UInt128 {
+        match call {
+          Query(sel) =>
+            st.validate(
+              GWorldCall::Query(sel),
+              fn(v : W) -> Int { GWorld::query(v, sel) },
+              hash_int,
+            )
+          Font =>
+            st.validate(
+              GWorldCall::Font,
+              fn(v : W) -> Int { GWorld::font(v) },
+              hash_int,
+            )
+        }
+      },
+      fn(_c : GWorldCall) -> Unit { () },
+      fn(prev : Recorder[GWorldCall]?) -> Unit { st.detach(prev) },
+    ),
+    true,
+    fn() {
+      st.call(
+        GWorldCall::Query(script),
+        fn(v : W) -> Int { GWorld::query(v, script) },
+        hash_int,
+      ) +
+      st.call(GWorldCall::Font, fn(v : W) -> Int { GWorld::font(v) }, hash_int)
+    },
+  )
+}
+
+///|
+test "g6_dyn_world_polymorphism" {
+  //| 真实 World:query = 4+3=7, font = 2 → 9
+  let real : GWorldTracked[G6RealWorld] = GWorldTracked::new({ data: "real" })
+  let r1 = g6_compile(real, "doc")
+  if r1 != 9 {
+    panic()
+  }
+  //| Fake World(测试用)——同一泛型函数,不同实现:query = 30, font = 1 → 31
+  let fake : GWorldTracked[G6FakeWorld] = GWorldTracked::new({ data: "fake" })
+  let r2 = g6_compile(fake, "doc")
+  if r2 != 31 {
+    panic()
+  }
+  //| 同一 World 再次编译:hit
+  let r3 = g6_compile(real, "doc")
+  if r3 != 9 {
+    panic()
+  }
+}
