@@ -47,7 +47,8 @@ for line in moon_lines:
         moon_vals.append(v)
 
 names = ['s1_cold_single', 's2_warm_hits', 's3_calc_unrelated_edit',
-         's4_same_key_1000x2', 's5_evict_cycle']
+         's4_same_key_1000x2', 's5_evict_cycle',
+         's6_trackedmut_mutable', 's7_multi5_bundle']
 
 print(f"{'scenario':<28} {'rust ns':>12} {'moon ns':>12} {'ratio':>8}")
 print("-" * 64)

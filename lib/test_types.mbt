@@ -445,11 +445,11 @@ test "g4_trackedmut_downgrade_shared" {
 
 ///|
 pub(all) enum BundleCall {
-  WorldQuery(String)
-  IntroQuery(String)
-  TracedPush(String)
-  RouteResolve(String)
-  SinkPush(String)
+  WorldQuery(Int)
+  IntroQuery(Int)
+  TracedPush(Int)
+  RouteResolve(Int)
+  SinkPush(Int)
 } derive(Hash, Eq)
 
 ///|
@@ -457,23 +457,23 @@ pub impl RustHashable for BundleCall with fn write_rust(self, bytes) {
   match self {
     WorldQuery(k) => {
       append_u64_le(bytes, 0)
-      write_rust_string(bytes, k)
+      write_rust_int(bytes, k)
     }
     IntroQuery(k) => {
       append_u64_le(bytes, 1)
-      write_rust_string(bytes, k)
+      write_rust_int(bytes, k)
     }
     TracedPush(k) => {
       append_u64_le(bytes, 2)
-      write_rust_string(bytes, k)
+      write_rust_int(bytes, k)
     }
     RouteResolve(k) => {
       append_u64_le(bytes, 3)
-      write_rust_string(bytes, k)
+      write_rust_int(bytes, k)
     }
     SinkPush(k) => {
       append_u64_le(bytes, 4)
-      write_rust_string(bytes, k)
+      write_rust_int(bytes, k)
     }
   }
 }
@@ -502,37 +502,36 @@ struct G5Route {
 
 ///|
 struct G5Sink {
-  mut buf : String
+  mut buf : Int
 }
 
 ///|
-fn G5World::query(self : G5World, k : String) -> String {
-  self.data + k
+fn G5World::query(self : G5World, k : Int) -> Int {
+  self.data.length() + k
 }
 
 ///|
-fn G5Intro::query(self : G5Intro, k : String) -> String {
-  self.data + k
+fn G5Intro::query(self : G5Intro, k : Int) -> Int {
+  self.data.length() + k
 }
 
 ///|
-fn G5Traced::push(self : G5Traced, k : String) -> String {
-  self.data + k
+fn G5Traced::push(self : G5Traced, k : Int) -> Int {
+  self.data.length() + k
 }
 
 ///|
-fn G5Route::resolve(self : G5Route, k : String) -> String {
-  self.data + k
+fn G5Route::resolve(self : G5Route, k : Int) -> Int {
+  self.data.length() + k
 }
 
 ///|
-fn G5Sink::push(self : G5Sink, k : String) -> Unit {
-  let b = self.buf
-  self.buf = b + k
+fn G5Sink::push(self : G5Sink, k : Int) -> Unit {
+  self.buf = self.buf + k
 }
 
 ///|
-let g5_cache : Cache[BundleCall, String] = Cache::new()
+let g5_cache : Cache[BundleCall, Int] = Cache::new()
 
 ///|
 fn g5_eval(
@@ -541,12 +540,12 @@ fn g5_eval(
   t : Tracked[G5Traced, BundleCall],
   r : Tracked[G5Route, BundleCall],
   s : TrackedMut[G5Sink, BundleCall],
-  k : String,
-) -> String {
+  k : Int,
+) -> Int {
   memoize5(
     g5_cache,
     Input5::new(
-      fn() { hash_string(k) },
+      fn() { hash_int(k) },
       fn(
         rec : Recorder[BundleCall],
       ) -> (
@@ -569,26 +568,26 @@ fn g5_eval(
           WorldQuery(kk) =>
             w.validate(
               BundleCall::WorldQuery(kk),
-              fn(x : G5World) -> String { x.query(kk) },
-              hash_string,
+              fn(x : G5World) -> Int { x.query(kk) },
+              hash_int,
             )
           IntroQuery(kk) =>
             i.validate(
               BundleCall::IntroQuery(kk),
-              fn(x : G5Intro) -> String { x.query(kk) },
-              hash_string,
+              fn(x : G5Intro) -> Int { x.query(kk) },
+              hash_int,
             )
           TracedPush(kk) =>
             t.validate(
               BundleCall::TracedPush(kk),
-              fn(x : G5Traced) -> String { x.push(kk) },
-              hash_string,
+              fn(x : G5Traced) -> Int { x.push(kk) },
+              hash_int,
             )
           RouteResolve(kk) =>
             r.validate(
               BundleCall::RouteResolve(kk),
-              fn(x : G5Route) -> String { x.resolve(kk) },
-              hash_string,
+              fn(x : G5Route) -> Int { x.resolve(kk) },
+              hash_int,
             )
           SinkPush(kk) =>
             s.validate(
@@ -634,25 +633,24 @@ fn g5_eval(
       )
       w.call(
         BundleCall::WorldQuery(k),
-        fn(x : G5World) -> String { x.query(k) },
-        hash_string,
+        fn(x : G5World) -> Int { x.query(k) },
+        hash_int,
       ) +
       i.call(
         BundleCall::IntroQuery(k),
-        fn(x : G5Intro) -> String { x.query(k) },
-        hash_string,
+        fn(x : G5Intro) -> Int { x.query(k) },
+        hash_int,
       ) +
       t.call(
         BundleCall::TracedPush(k),
-        fn(x : G5Traced) -> String { x.push(k) },
-        hash_string,
+        fn(x : G5Traced) -> Int { x.push(k) },
+        hash_int,
       ) +
       r.call(
         BundleCall::RouteResolve(k),
-        fn(x : G5Route) -> String { x.resolve(k) },
-        hash_string,
-      ) +
-      "out"
+        fn(x : G5Route) -> Int { x.resolve(k) },
+        hash_int,
+      )
     },
   )
 }
@@ -663,21 +661,21 @@ test "g5_memoize5_bundle_impl" {
   let i : Tracked[G5Intro, BundleCall] = Tracked::new({ data: "I" })
   let t : Tracked[G5Traced, BundleCall] = Tracked::new({ data: "T" })
   let r : Tracked[G5Route, BundleCall] = Tracked::new({ data: "R" })
-  let s : TrackedMut[G5Sink, BundleCall] = TrackedMut::new({ buf: "" })
-  //| miss:5 个调用都执行
-  let r1 = g5_eval(w, i, t, r, s, "k")
-  //| Wk+Ik+Tk+Rk+out(sink push 返回 unit 记 ""),sink buf = "k"
-  if r1 != "WkIkTkRkout" || s.get().buf != "k" {
+  let s : TrackedMut[G5Sink, BundleCall] = TrackedMut::new({ buf: 0 })
+  //| miss:5 个调用都执行,W5+I5+T5+R5+out,sink buf = "5"
+  //| data len=1, query=1+5=6 → 4 个 = 24;sink buf = "5"
+  let r1 = g5_eval(w, i, t, r, s, 5)
+  if r1 != 24 || s.get().buf != 5 {
     panic()
   }
-  //| hit:mutable(SinkPush) 重放 → buf = "kk",output 缓存
-  let r2 = g5_eval(w, i, t, r, s, "k")
-  if r2 != "WkIkTkRkout" || s.get().buf != "kk" {
+  //| hit:mutable(SinkPush) 重放 → buf = 10,output 缓存
+  let r2 = g5_eval(w, i, t, r, s, 5)
+  if r2 != 24 || s.get().buf != 10 {
     panic()
   }
-  //| 改参数:miss
-  let r3 = g5_eval(w, i, t, r, s, "z")
-  if r3 != "WzIzTzRzout" || s.get().buf != "kkz" {
+  //| 改参数:miss,query=1+9=10 → 4 个 = 40
+  let r3 = g5_eval(w, i, t, r, s, 9)
+  if r3 != 40 || s.get().buf != 19 {
     panic()
   }
 }

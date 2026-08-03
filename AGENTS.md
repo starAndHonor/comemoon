@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-**comemoon** is a MoonBit rewrite of [`comemo`](https://github.com/typst/comemo) v0.5.0 — an incremental-computation library based on *constrained memoization*. Goal: match comemo's semantics with better speed and lower memory usage (MoonBit compiles to native/WASM with no GC overhead on the hot path).
+**comemoon** is a MoonBit rewrite of [`comemo`](https://github.com/typst/comemo) v0.5.1 — an incremental-computation library based on *constrained memoization*. Goal: match comemo's semantics with better speed and lower memory usage (MoonBit compiles to native/WASM with no GC overhead on the hot path).
 
-The Rust reference implementation lives at `refs/comemo/` (Apache-2.0 + MIT dual licensed) and is the **behavioral contract** for this project. The MoonBit side is currently a bare `moon new` scaffold — no library code exists yet.
+The Rust reference implementation lives at `refs/comemo/` (Apache-2.0 + MIT dual licensed) and is the **behavioral contract** for this project. The MoonBit runtime library lives in `lib/` (single package): all core modules ported, 26 tests green (wasm + native), CI green. The Typst gaps G1-G6 are resolved (see `GAP-PLAN.md`): multi-param memoize (up to 5), TrackedMut, trait track, dyn-equivalent generics.
 
 **What comemo does:** a memoized function caches its result keyed by (1) a 128-bit hash of all non-tracked arguments and (2) a *call sequence* — every method call made on `Tracked` arguments during the computation, recorded as `(call, return-hash)` pairs. A cache hit is taken only if every recorded call, replayed on the *current* tracked value, produces the same return hash. This gives fine-grained invalidation: editing an unreferenced part of tracked data keeps the cache valid (see `refs/comemo/examples/calc.rs`).
 
@@ -16,8 +16,8 @@ Two-layer design from the reference implementation:
 memoized fn call
       │
       ▼
-per-fn Cache (RwLock<CallTree>)
-      │  key = SipHash128(receiver + non-tracked args)
+per-fn Cache (CallTree)
+      │  key = murmur3-128(receiver + non-tracked args)
       ▼
 CallTree lookup: walk trie; at each inner node replay recorded call on live
 Tracked value (Input::call oracle, accelerated by per-instance map); continue
@@ -40,7 +40,7 @@ Core components (Rust names — the MoonBit rewrite must provide equivalents):
 | `tree.rs` | `CallTree` trie: slab-based inner/leaf nodes, `FxHashMap` edges keyed by `(inner_id, ret_hash)` |
 | `input.rs` | `Input` trait unifying plain-hash args and tracked args; `Multi` tuple wrapper (arities 0–12) |
 | `constraint.rs` | `Constraint` sink recording `(call, ret)`; `CallSequence` dedup structure |
-| `hash.rs` | `SipHasher13` 128-bit hashing (all keys, call hashes, return hashes) |
+| `hash.mbt` | murmur3 128-bit hashing (all keys, call hashes, return hashes) + Rust-style `Hash` encodings |
 | `accelerate.rs` | Per-`Tracked`-instance `(call_hash → ret_hash)` map → O(1) validation, avoids re-running tracked methods |
 
 **Key semantics that MUST be preserved in the rewrite:**
@@ -58,7 +58,7 @@ Core components (Rust names — the MoonBit rewrite must provide equivalents):
 | `refs/comemo/` | Rust reference implementation (contract source). Read before writing MoonBit code. |
 | `refs/comemo/src/` | Rust library (~1600 lines across 9 files). |
 | `refs/comemo/macros/` | Rust proc-macro crate (`#[memoize]`, `#[track]` codegen) — informs what MoonBit must emulate. |
-| `refs/comemo/tests/tests.rs` | 17 `#[test]` + 2 quickcheck properties — the behavioral test contract to port. |
+| `refs/comemo/tests/tests.rs` | 17 `#[test]` + 2 quickcheck properties — the behavioral test contract (ported to 26 MoonBit tests). |
 | `refs/comemo/examples/` | `basic.rs` (plain memoization), `calc.rs` (tracked dependency graph). |
 | `NovaForge-Output-comemo/` | Typst study notes on comemo internals (5 chapters + appendix) — useful when porting. |
 | `PORTING-PLAN.md` | 技术方案:无宏 codegen 决策、运行时模块设计、生成器架构。 |
@@ -79,11 +79,13 @@ moon test --update    # refresh snapshot tests
 moon run cmd/main     # run the executable
 moon fmt              # format (block style, `///|` separators)
 moon info             # regenerate .mbti interface files — run `moon info && moon fmt` after API changes; review .mbti diffs
+moon bench            # benchmark suite (lib/bench_wbtest.mbt), native: --target native
+bash bench/run_bench.sh  # 7-scenario comparison vs Rust (s1-s7)
 moon coverage         # coverage analysis (moon coverage analyze > uncovered.log)
 moon add <pkg>        # add dependency (e.g. moonbitlang/x)
 ```
 
-No MoonBit CI workflow exists yet — port the Rust CI gates (`cargo test --all-features`, clippy, fmt check, doc) to `moon check`/`moon test`/`moon fmt --check` equivalents when CI is added.
+CI (GitHub Actions) is configured: install → moon check → moon test (wasm) → moon test (native) → moon fmt --check → generator consistency diff. All green.
 
 ## Code Conventions & Common Patterns
 
@@ -91,11 +93,12 @@ No MoonBit CI workflow exists yet — port the Rust CI gates (`cargo test --all-
 - **Error handling**: MoonBit uses `Result[T, E]` / `raise` / `try` — no exceptions. comemo's Rust panics (non-determinism, impure tracked fn) map to `panic()` calls in debug paths.
 - **No proc macros in MoonBit — official codegen is the chosen strategy**: `#[memoize]` / `#[track]` are replaced by (1) user-written code annotated with custom attributes (`#comemo.memoize`, `#comemo.track` — compiler-ignored, parsed by our generator), (2) a MoonBit-written generator CLI (`gen/`) that emits all boilerplate (Call enums, `tracked()` wrappers, cache declarations, memoize calls), (3) the official `rule` + `dev_build` build hooks (`moon.mod` rule + `moon.pkg` dev_build) which run the generator automatically before `moon check`/`build`/`test` with `$input`/`$output` path substitution. Generated files are COMMITTED to the repo (downstream users build without running the generator — this is the documented design intent). The Rust macros' expansion (`macros/src/memoize.rs`, `macros/src/track.rs`) is the codegen spec. Verified working end-to-end on moon 0.1.20260724. See `PORTING-PLAN.md` for the full design.
 - **Rust dep replacements**:
-  - `siphasher` → implement/copy SipHash13 128-bit (or use `moonbitlang/x` hash if available).
-  - `rustc-hash` FxHashMap + `u128` keys → MoonBit `HashMap` with custom hasher.
+  - `siphasher` → murmur3 128-bit in `lib/hash.mbt` (performance-first decision, 2026-08-02; byte-identical SipHash13 was the earlier choice, replaced).
+  - `rustc-hash` FxHashMap + `u128` keys → MoonBit `HashMap` with `UInt128` keys.
   - `slab` (arena) → MoonBit `Array`-backed free-list arena.
-  - `parking_lot` locks → MoonBit `Mutex`/`RwLock` (in `moonbitlang/core`), or thread-local/unsafe where single-threaded.
+  - `parking_lot` locks → single-threaded: plain `Ref` cells (wasm target).
   - `quickcheck` → property tests via loops over generated inputs in `_wbtest.mbt`.
+  - Rust `dyn Trait` → generic bounds + generic surface (`WorldTracked[W]` + `fn[W : World]`); `&mut T` borrows → `Ref[T]`; lifetimes → value semantics.
 - **Naming**: follow MoonBit conventions (snake_case fns, CamelCase types); keep public API names parallel to comemo (`memoize`, `evict`, `Tracked`, `TrackedMut`, `Track`, `Constraint`).
 - **Tests**: prefer `assert_eq`/`assert_true` over Show-debugging; use `debug_inspect` + `derive(Debug)` for snapshot tests.
 

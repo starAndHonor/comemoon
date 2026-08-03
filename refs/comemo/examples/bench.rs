@@ -4,7 +4,7 @@
 //! Output format (matched by the MoonBit bench):
 //!   <scenario>: <n> iters in <total> (<ns>/iter)
 
-use comemo::{memoize, track, Track, Tracked};
+use comemo::{memoize, track, Track, Tracked, TrackedMut};
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -99,11 +99,38 @@ fn main() {
         comemo::evict(10);
         acc as i32
     });
+
+    // Scenario 6: TrackedMut — mutable calls replayed on hit.
+    let mut counter = Counter(0);
+    let mut i = 0;
+    run("s6_trackedmut_mutable", 100_000, || {
+        counter.0 = i;
+        i += 1;
+        mutable_eval(1, counter.track_mut())
+    });
+
+    // Scenario 7: 5 tracked params (bundle_impl pattern).
+    let world = SmallWorld { tag: 1 };
+    let intro = SmallIntro { tag: 2 };
+    let traced = Traced(3);
+    let route = Route(4);
+    let mut sink = Sink(0);
+    let mut i = 0;
+    run("s7_multi5_bundle", 100_000, || {
+        i += 1;
+        five(
+            world.track(),
+            intro.track(),
+            traced.track(),
+            route.track(),
+            sink.track_mut(),
+            i,
+        )
+    });
 }
 
 /// Simple deterministic pseudo-random (xorshift), avoids std::rand dep.
-fn rand() -> u32 {
-    use std::sync::atomic::{AtomicU32, Ordering};
+fn rand() -> u32 {    use std::sync::atomic::{AtomicU32, Ordering};
     static S: AtomicU32 = AtomicU32::new(0x12345678);
     let mut x = S.load(Ordering::SeqCst);
     x ^= x << 13;
@@ -112,3 +139,87 @@ fn rand() -> u32 {
     S.store(x, Ordering::SeqCst);
     x
 }
+
+// --- Scenario 6: TrackedMut ---------------------------------------------
+
+struct Counter(i32);
+
+#[track]
+impl Counter {
+    fn add(&mut self, n: i32) {
+        self.0 += n;
+    }
+}
+
+#[memoize]
+fn mutable_eval(n: i32, mut counter: TrackedMut<Counter>) -> i32 {
+    counter.add(n);
+    n
+}
+
+// --- Scenario 7: 5 tracked params ----------------------------------------
+
+struct SmallWorld {
+    tag: u32,
+}
+
+#[track]
+impl SmallWorld {
+    fn query(&self, k: u32) -> u32 {
+        self.tag + k
+    }
+}
+
+struct SmallIntro {
+    tag: u32,
+}
+
+#[track]
+impl SmallIntro {
+    fn query(&self, k: u32) -> u32 {
+        self.tag + k
+    }
+}
+
+struct Traced(u32);
+
+#[track]
+impl Traced {
+    fn push(&self, k: u32) -> u32 {
+        self.0 + k
+    }
+}
+
+struct Route(u32);
+
+#[track]
+impl Route {
+    fn resolve(&self, k: u32) -> u32 {
+        self.0 + k
+    }
+}
+
+#[derive(Clone, Hash)]
+struct Sink(i32);
+
+#[track]
+impl Sink {
+    fn push(&mut self, k: i32) {
+        self.0 += k;
+    }
+}
+
+
+#[memoize]
+fn five(
+    world: Tracked<SmallWorld>,
+    intro: Tracked<SmallIntro>,
+    traced: Tracked<Traced>,
+    route: Tracked<Route>,
+    mut sink: TrackedMut<Sink>,
+    k: u32,
+) -> i32 {
+    sink.push(k as i32);
+    (world.query(k) + intro.query(k) + traced.push(k) + route.resolve(k)) as i32
+}
+

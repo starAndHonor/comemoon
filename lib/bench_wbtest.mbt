@@ -188,3 +188,220 @@ test (b : @bench.T) {
     count=10,
   )
 }
+
+//| Scenario 6: TrackedMut — mutable calls replayed on hit (miss path:
+//| key increments each round, so every round inserts).
+
+///|
+let s6_cache : Cache[G4CounterCall, Int] = Cache::new()
+
+///|
+fn s6_eval(n : Int, counter : TrackedMut[G4Counter, G4CounterCall]) -> Int {
+  let st = counter
+  memoize(
+    s6_cache,
+    Input::new(
+      fn() { hash_int(n) },
+      fn(rec : Recorder[G4CounterCall]) -> Recorder[G4CounterCall]? {
+        st.attach(rec)
+      },
+      fn(call : G4CounterCall) -> UInt128 {
+        match call {
+          Add(nn) =>
+            st.validate(
+              G4CounterCall::Add(nn),
+              fn(s : G4Counter) -> Unit { s.add(nn) },
+              hash_unit_value,
+            )
+          Count =>
+            st.validate(
+              G4CounterCall::Count,
+              fn(s : G4Counter) -> Int { s.count() },
+              hash_int,
+            )
+        }
+      },
+      fn(call : G4CounterCall) -> Unit {
+        match call {
+          Add(nn) =>
+            st.call_mut(
+              G4CounterCall::Add(nn),
+              fn(s : G4Counter) -> Unit { s.add(nn) },
+              hash_unit_value,
+            )
+          Count => ()
+        }
+      },
+      fn(prev : Recorder[G4CounterCall]?) -> Unit { st.detach(prev) },
+    ),
+    true,
+    fn() {
+      st.call_mut(
+        G4CounterCall::Add(n),
+        fn(s : G4Counter) -> Unit { s.add(n) },
+        hash_unit_value,
+      )
+      n
+    },
+  )
+}
+
+///|
+test (b : @bench.T) {
+  let mut c : G4Counter = { total: 0 }
+  let mut i = 0
+  let tm : TrackedMut[G4Counter, G4CounterCall] = TrackedMut::new(c)
+  b.bench(
+    fn() {
+      c = { total: i }
+      i = i + 1
+      let tmr = tm.reborrow_mut()
+      b.keep(s6_eval(1, tmr))
+    },
+    count=10,
+  )
+}
+
+//| Scenario 7: 5 tracked params (bundle_impl pattern), miss path.
+
+///|
+let s7_cache : Cache[BundleCall, Int] = Cache::new()
+
+///|
+fn s7_eval(
+  w : Tracked[G5World, BundleCall],
+  i : Tracked[G5Intro, BundleCall],
+  t : Tracked[G5Traced, BundleCall],
+  r : Tracked[G5Route, BundleCall],
+  s : TrackedMut[G5Sink, BundleCall],
+  k : Int,
+) -> Int {
+  memoize5(
+    s7_cache,
+    Input5::new(
+      fn() { hash_int(k) },
+      fn(
+        rec : Recorder[BundleCall],
+      ) -> (
+        Recorder[BundleCall]?,
+        Recorder[BundleCall]?,
+        Recorder[BundleCall]?,
+        Recorder[BundleCall]?,
+        Recorder[BundleCall]?,
+      ) {
+        (
+          w.attach(rec),
+          i.attach(rec),
+          t.attach(rec),
+          r.attach(rec),
+          s.attach(rec),
+        )
+      },
+      fn(call : BundleCall) -> UInt128 {
+        match call {
+          WorldQuery(kk) =>
+            w.validate(
+              BundleCall::WorldQuery(kk),
+              fn(x : G5World) -> Int { x.query(kk) },
+              hash_int,
+            )
+          IntroQuery(kk) =>
+            i.validate(
+              BundleCall::IntroQuery(kk),
+              fn(x : G5Intro) -> Int { x.query(kk) },
+              hash_int,
+            )
+          TracedPush(kk) =>
+            t.validate(
+              BundleCall::TracedPush(kk),
+              fn(x : G5Traced) -> Int { x.push(kk) },
+              hash_int,
+            )
+          RouteResolve(kk) =>
+            r.validate(
+              BundleCall::RouteResolve(kk),
+              fn(x : G5Route) -> Int { x.resolve(kk) },
+              hash_int,
+            )
+          SinkPush(kk) =>
+            s.validate(
+              BundleCall::SinkPush(kk),
+              fn(x : G5Sink) -> Unit { x.push(kk) },
+              hash_unit_value,
+            )
+        }
+      },
+      fn(call : BundleCall) -> Unit {
+        match call {
+          SinkPush(kk) =>
+            s.call_mut(
+              BundleCall::SinkPush(kk),
+              fn(x : G5Sink) -> Unit { x.push(kk) },
+              hash_unit_value,
+            )
+          _ => ()
+        }
+      },
+      fn(
+        prev : (
+          Recorder[BundleCall]?,
+          Recorder[BundleCall]?,
+          Recorder[BundleCall]?,
+          Recorder[BundleCall]?,
+          Recorder[BundleCall]?,
+        ),
+      ) -> Unit {
+        w.detach(prev.0)
+        i.detach(prev.1)
+        t.detach(prev.2)
+        r.detach(prev.3)
+        s.detach(prev.4)
+      },
+    ),
+    true,
+    fn() {
+      s.call_mut(
+        BundleCall::SinkPush(k),
+        fn(x : G5Sink) -> Unit { x.push(k) },
+        hash_unit_value,
+      )
+      w.call(
+        BundleCall::WorldQuery(k),
+        fn(x : G5World) -> Int { x.query(k) },
+        hash_int,
+      ) +
+      i.call(
+        BundleCall::IntroQuery(k),
+        fn(x : G5Intro) -> Int { x.query(k) },
+        hash_int,
+      ) +
+      t.call(
+        BundleCall::TracedPush(k),
+        fn(x : G5Traced) -> Int { x.push(k) },
+        hash_int,
+      ) +
+      r.call(
+        BundleCall::RouteResolve(k),
+        fn(x : G5Route) -> Int { x.resolve(k) },
+        hash_int,
+      )
+    },
+  )
+}
+
+///|
+test (b : @bench.T) {
+  let w : Tracked[G5World, BundleCall] = Tracked::new({ data: "W" })
+  let i : Tracked[G5Intro, BundleCall] = Tracked::new({ data: "I" })
+  let t : Tracked[G5Traced, BundleCall] = Tracked::new({ data: "T" })
+  let r : Tracked[G5Route, BundleCall] = Tracked::new({ data: "R" })
+  let s : TrackedMut[G5Sink, BundleCall] = TrackedMut::new({ buf: 0 })
+  let mut k = 0
+  b.bench(
+    fn() {
+      k = k + 1
+      b.keep(s7_eval(w, i, t, r, s, k))
+    },
+    count=10,
+  )
+}

@@ -1,7 +1,7 @@
 # comemoon
 
 Incremental computation through constrained memoization — a MoonBit port of
-[`comemo`](https://github.com/typst/comemo) v0.5.0.
+[`comemo`](https://github.com/typst/comemo) v0.5.1.
 
 A memoized function caches its result keyed by (1) a hash of all non-tracked
 arguments and (2) a *call sequence*: every method call made on `Tracked`
@@ -13,9 +13,15 @@ tracked data keeps the cache valid.
 ## Features
 
 - Fine-grained invalidation: only *actually-read* tracked data invalidates.
-- Mutable tracked calls replayed on cache hit (side effects restored).
+- Mutable tracked calls (`TrackedMut`) replayed on cache hit (side effects
+  restored); downgrade/reborrow/track_mut views.
+- Trait track: `#comemo.track` on a trait generates a generic surface
+  (`WorldTracked[T]` with `fn[T : World]` bounds) — Typst's `World` pattern.
+- Multi-parameter memoize: up to 5 tracked params (`Input5`/`memoize5`),
+  matching Typst's `bundle_impl` (4 Tracked + 1 TrackedMut).
 - Per-instance validation accelerator (O(1) revalidation).
 - Age-based eviction; recursion shares the per-function cache.
+- murmur3 128-bit hashing (performance-first; keys are in-process only).
 - No proc macros: `#comemo.track`-annotated types are expanded by a build-time
   generator (`gen/gen.py`) wired through MoonBit's `rule`/`dev_build` hooks.
 
@@ -42,24 +48,33 @@ against it directly without running the generator.
 ## Layout
 
 - `lib/` — the runtime library (single package)
-  - `siphash.mbt` — SipHash-1-3 128-bit (byte-identical to Rust comemo)
-  - `hash.mbt` — Rust std `Hash` encodings + `RustHashable` trait
-  - `tree.mbt` — `CallTree` trie + slab arena
+  - `hash.mbt` — murmur3 128-bit + Rust-style `Hash` encodings (`RustHashable`)
+  - `tree.mbt` — `CallTree` trie + free-list arena
   - `constraint.mbt` — `CallSequence` (dedup) + `Constraint` (immutable/mutable)
-  - `tracked.mbt` — `Tracked` wrapper (closure recorder, MergedSink chaining)
+  - `tracked.mbt` — `Tracked` / `TrackedMut` wrappers (Ref-based, MergedSink chaining)
   - `cache.mbt` — per-function `Cache` with age-based eviction
-  - `memoize.mbt` — `memoize` entry (lookup/attach/insert)
+  - `memoize.mbt` — `memoize`/`memoize_pure` + `Input2..5`/`memoize2..5`
   - `accelerate.mbt` — per-instance validation accelerator
   - `user_tracked.mbt` + `comemo_gen.mbt` — generator input / generated output
-- `gen/gen.py` — `#comemo.track` code generator (wired via `rule`/`dev_build`)
-- `bench/` — 5-scenario benchmark vs the Rust reference (`run_bench.sh`)
+  - `test_types.mbt` / `gen_test.mbt` — tests incl. G1-G6 gap coverage
+- `gen/gen.py` — `#comemo.track` code generator (structs + traits, wired via
+  `rule`/`dev_build`)
+- `bench/` — 7-scenario benchmark vs the Rust reference (`run_bench.sh`)
 - `cmd/main/` — calc dependency graph demo
+
+## Gap status vs Typst usage
+
+See `GAP-PLAN.md`. G1 (multi-param), G2 (trait track), G4 (TrackedMut),
+G5 (5-param memoize), G6 (dyn-World equivalent) are done; G3 (lifetime impls)
+is N/A (internal borrows use `Ref`).
 
 ## Docs
 
 - `AGENTS.md` — repository guidelines
 - `PORTING-PLAN.md` — technical porting decisions (incl. no-proc-macro design)
 - `MIGRATION-PLAN.md` — phase roadmap and test-contract mapping
+- `GAP-PLAN.md` — gap analysis vs latest comemo + Typst usage (G1-G6)
+- `bench/moon-vs-rust.md` — benchmark methodology and results
 
 ## License
 
