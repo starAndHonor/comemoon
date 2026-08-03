@@ -1,6 +1,6 @@
 # 差距修复计划(comemo 最新版对齐)
 
-> 状态:✅ G1+G2 已完成,2026-08-02。G3-G6 记录为已知限制/不适用。目标:对齐 comemo 最新 commit `5944487` 的 API 与行为,
+> 状态:✅ G1/G2/G4/G5/G6 已完成,2026-08-03。G3 记录为不适用(内部借用由 Ref 替代)。目标:对齐 comemo 最新 commit `5944487` 的 API 与行为,
 > 补齐 Typst 实际使用暴露的 3 个缺口。参考实现:`refs/comemo`(最新),`refs/typst`(下游)。
 
 ## 差距清单(按优先级)
@@ -97,6 +97,19 @@ trait 不能作类型参数(之前验证过)→ `Tracked[A, C]` 的 A 必须具�
 ### 改动文件
 - `gen/gen.py`:识别 trait 标记 → 泛型 surface + 方法约束
 - 测试:复用 `test_types.mbt` 的 Loader trait 场景扩展
+
+## G4-G6:已完成(2026-08-03)
+
+Typst 重构的核心缺口(评估后确认需要):
+
+| 项 | 实现 |
+|---|---|
+| G4 TrackedMut | `TrackedMut[A, C]` 独立类型:downgrade/reborrow/reborrow_mut/track_mut/call/call_mut。`Tracked::track_mut` 共享值视图。25/25 测试 |
+| G5 多参数 | `Input3/4/5` + `memoize3/4/5`(合并 Call 枚举模式,同 Input2)。5 参数测试对齐 `bundle_impl`(4 Tracked + 1 TrackedMut) |
+| G6 dyn 等价 | `Tracked<dyn World>` → 泛型 surface `WorldTracked[W]` + `fn[W : World] compile(...)`。编译期多态等价(单 world 场景) |
+
+**验证**:26/26 测试全绿(wasm + native),CI 通过。
+**语义确认**:TrackedMut 的 mutable 调用在验证时**不进树**(仅 hit 后重放副作用),与 Rust 的 `CallTree::get` 一致——验证只比对不可变调用的 ret_hash。
 
 ## G3:带生命周期 impl
 

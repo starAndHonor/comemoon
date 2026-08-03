@@ -66,7 +66,10 @@ fn evaluate(script : String, files : Files) -> Int {
 **GAP 修复(2026-08-02,对齐 comemo 最新版)**:见 `GAP-PLAN.md`。
 - G1 多 tracked 参数 ✅:`Input2`/`memoize2` + 合并 Call 枚举(对齐 Typst `compile_impl` 的 world+traced)
 - G2 trait track ✅:`#comemo.track` 标记 trait → 泛型 surface `WorldTracked[T]`(对齐 Typst `World`/`Introspector`)
-- G3 生命周期不适用(MoonBit 值语义);G4-G6 记录为已知限制
+- G3 生命周期不适用(内部借用由 Ref 替代)
+- G4 TrackedMut 独立类型 ✅(downgrade/reborrow/track_mut)
+- G5 多参数 memoize(Input3/4/5)✅(bundle_impl 的 5 参数模式)
+- G6 trait object 等价 ✅(泛型 surface + 泛型 compile)
 
 **Hash 复刻关键决策(2026-08-02)**:
 - 用户要求 hash 与 Rust 完全一致(非仅自洽)。实现 `siphash.mbt`(SipHash-1-3 128-bit,字节级复刻 siphasher crate)+ `hash.mbt`(Rust std Hash 编码)。
