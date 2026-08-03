@@ -133,3 +133,53 @@ pub impl RustHashable for StrCall with fn write_rust(self, bytes) {
     S(v) => write_rust_string(bytes, v)
   }
 }
+
+//| G1 验证:两个 tracked 参数的合并 Call 枚举(模拟 Typst World+Traced)
+
+///|
+pub(all) enum WorldCall {
+  Query(String)
+} derive(Hash, Eq)
+
+///|
+pub impl RustHashable for WorldCall with fn write_rust(self, bytes) {
+  match self {
+    Query(s) => {
+      append_u64_le(bytes, 0)
+      write_rust_string(bytes, s)
+    }
+  }
+}
+
+///|
+pub(all) enum TracedCall {
+  Span
+} derive(Hash, Eq)
+
+///|
+pub impl RustHashable for TracedCall with fn write_rust(self, bytes) {
+  match self {
+    Span => append_u64_le(bytes, 0)
+  }
+}
+
+///|
+/// 合并枚举:每个 tracked 参数一个变体,包装其 Call
+pub(all) enum WorldTracedCall {
+  W(WorldCall)
+  T(TracedCall)
+} derive(Hash, Eq)
+
+///|
+pub impl RustHashable for WorldTracedCall with fn write_rust(self, bytes) {
+  match self {
+    W(c) => {
+      append_u64_le(bytes, 0)
+      c.write_rust(bytes)
+    }
+    T(c) => {
+      append_u64_le(bytes, 1)
+      c.write_rust(bytes)
+    }
+  }
+}

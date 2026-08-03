@@ -148,3 +148,83 @@ pub fn[C : RustHashable, O] memoize_pure(
   register_miss()
   output
 }
+
+///| ---------------------------------------------------------------------------
+
+///| Multi-input support (mirrors Rust's `Multi<(...)>` for 2 tracked params).
+
+///| The generator produces a merged Call enum (CM) and uses `Input2` to
+
+///| route calls from either parameter into it.
+
+///| ---------------------------------------------------------------------------
+
+///| An input with two tracked parameters.
+
+///| `attach` returns both params' previous recorders (for restore);
+
+///| `detach` restores them; `oracle`/`replay_mut` dispatch on the merged
+
+///|
+/// call.
+pub struct Input2[C1, C2, CM] {
+  key : () -> UInt128
+  attach : (Recorder[CM]) -> (Recorder[C1]?, Recorder[C2]?)
+  oracle : (CM) -> UInt128
+  replay_mut : (CM) -> Unit
+  detach : ((Recorder[C1]?, Recorder[C2]?)) -> Unit
+}
+
+///|
+pub fn[C1, C2, CM] Input2::new(
+  key : () -> UInt128,
+  attach : (Recorder[CM]) -> (Recorder[C1]?, Recorder[C2]?),
+  oracle : (CM) -> UInt128,
+  replay_mut : (CM) -> Unit,
+  detach : ((Recorder[C1]?, Recorder[C2]?)) -> Unit,
+) -> Input2[C1, C2, CM] {
+  { key, attach, oracle, replay_mut, detach }
+}
+
+///|
+/// Memoize with two tracked parameters.
+pub fn[C1 : RustHashable, C2 : RustHashable, CM : RustHashable, O] memoize2(
+  cache : Cache[CM, O],
+  input : Input2[C1, C2, CM],
+  enabled : Bool,
+  func : () -> O,
+) -> O {
+  if !enabled {
+    register_miss()
+    return func()
+  }
+  let key = (input.key)()
+  let lookup_res = cache.lookup(key, input.oracle)
+  match lookup_res {
+    Some(entry) => {
+      for call in entry.mutable {
+        (input.replay_mut)(call)
+      }
+      register_hit()
+      return entry.output
+    }
+    None => ()
+  }
+  let constraint = Constraint::new()
+  let prev = (input.attach)(fn(
+    call : CM,
+    call_hash : UInt128,
+    ret : UInt128,
+    mutable : Bool,
+  ) -> Unit {
+    constraint.record(call, call_hash, ret, mutable)
+  })
+  let output = func()
+  (input.detach)(prev)
+  match cache.insert(key, constraint, output) {
+    Ok(_) => ()
+    Err(_) => ()
+  }
+  register_miss()
+  output
+}

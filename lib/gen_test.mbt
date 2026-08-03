@@ -95,3 +95,167 @@ test "generated_calc" {
     panic()
   }
 }
+
+//| ---------------------------------------------------------------------------
+//| G1: two tracked parameters (mirrors Rust's Multi<(...)> for World+Traced).
+//| ---------------------------------------------------------------------------
+
+///|
+struct GWorld {
+  data : String
+}
+
+///|
+fn GWorld::query(self : GWorld, selector : String) -> Int {
+  self.data.length() + selector.length()
+}
+
+///|
+struct GTraced {
+  span : Int
+}
+
+///|
+fn GTraced::span(self : GTraced) -> Int {
+  self.span
+}
+
+//| 用户侧 surface(生成器会产出;手写验证)
+
+///|
+struct GWorldTracked {
+  t : Tracked[GWorld, WorldCall]
+}
+
+///|
+fn GWorldTracked::new(value : GWorld) -> GWorldTracked {
+  { t: Tracked::new(value) }
+}
+
+///|
+fn GWorldTracked::query(self : GWorldTracked, selector : String) -> Int {
+  self.t.call(
+    WorldCall::Query(selector),
+    fn(w : GWorld) -> Int { w.query(selector) },
+    test_hash_int,
+  )
+}
+
+///|
+struct GTracedTracked {
+  t : Tracked[GTraced, TracedCall]
+}
+
+///|
+fn GTracedTracked::new(value : GTraced) -> GTracedTracked {
+  { t: Tracked::new(value) }
+}
+
+///|
+fn GTracedTracked::span(self : GTracedTracked) -> Int {
+  self.t.call(
+    TracedCall::Span,
+    fn(x : GTraced) -> Int { x.span },
+    test_hash_int,
+  )
+}
+
+//| memoize 两个 tracked:用合并 Call 枚举
+
+///|
+let g_cache : Cache[WorldTracedCall, Int] = Cache::new()
+
+///|
+fn g_eval(world : GWorldTracked, traced : GTracedTracked) -> Int {
+  let wt = world.t
+  let tt = traced.t
+  memoize2(
+    g_cache,
+    Input2::new(
+      fn() { hash_zero() },
+      //| attach:两个 tracked 各接 recorder,返回组合 prev
+      fn(
+        rec : Recorder[WorldTracedCall],
+      ) -> (Recorder[WorldCall]?, Recorder[TracedCall]?) {
+        let p1 = wt.attach(fn(
+          c : WorldCall,
+          h : UInt128,
+          ret : UInt128,
+          m : Bool,
+        ) -> Unit {
+          rec(WorldTracedCall::W(c), h, ret, m)
+        })
+        let p2 = tt.attach(fn(
+          c : TracedCall,
+          h : UInt128,
+          ret : UInt128,
+          m : Bool,
+        ) -> Unit {
+          rec(WorldTracedCall::T(c), h, ret, m)
+        })
+        (p1, p2)
+      },
+      fn(c : WorldTracedCall) -> UInt128 {
+        match c {
+          W(wc) =>
+            wt.validate(
+              wc,
+              fn(w : GWorld) -> Int {
+                match wc {
+                  Query(s) => w.query(s)
+                }
+              },
+              test_hash_int,
+            )
+          T(tc) =>
+            tt.validate(
+              tc,
+              fn(x : GTraced) -> Int {
+                match tc {
+                  Span => x.span
+                }
+              },
+              test_hash_int,
+            )
+        }
+      },
+      fn(_c : WorldTracedCall) -> Unit { () },
+      fn(prev : (Recorder[WorldCall]?, Recorder[TracedCall]?)) -> Unit {
+        let (p1, p2) = prev
+        wt.detach(p1)
+        tt.detach(p2)
+      },
+    ),
+    true,
+    fn() { world.query("sel") + traced.span() },
+  )
+}
+
+///|
+test "g1_two_tracked_params" {
+  let w : GWorldTracked = GWorldTracked::new({ data: "world" })
+  let t : GTracedTracked = GTracedTracked::new({ span: 10 })
+  reset_oracle()
+  let r1 = g_eval(w, t)
+  //| query("sel") = data.len(5) + "sel".len(3) = 8; + span(10) = 18
+  if r1 != 18 {
+    panic()
+  }
+  if last_was_hit() {
+    panic()
+  } // miss
+
+  reset_oracle()
+  let r2 = g_eval(w, t)
+  if r2 != r1 || !last_was_hit() {
+    panic()
+  } // hit
+
+  //| 改 traced(仅第二个 tracked):第一个的查询缓存应保留,但整体 miss
+  let t2 : GTracedTracked = GTracedTracked::new({ span: 20 })
+  reset_oracle()
+  let r3 = g_eval(w, t2)
+  if r3 != 8 + 20 || last_was_hit() {
+    panic()
+  } // miss(span 变了)
+}
