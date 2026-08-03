@@ -44,6 +44,47 @@ pub fn FilesTracked::read(self : FilesTracked, path : String) -> String {
   }, hash_string)
 }
 
+///| Call enum for `G4Counter` (generated).
+pub(all) enum G4CounterCall {
+  Add(Int)
+  Count
+} derive(Hash, Eq)
+
+///| Rust-compatible hashing for `G4CounterCall` (generated).
+pub impl RustHashable for G4CounterCall with fn write_rust(self, bytes) {
+  match self {
+    Add(n) => {
+      append_u64_le(bytes, 0)
+      write_rust_int(bytes, n)
+    }
+    Count => {
+      append_u64_le(bytes, 1)
+    }
+  }
+}
+
+///| Surface wrapper for `G4Counter` (generated).
+pub(all) struct G4CounterTracked {
+  t : Tracked[G4Counter, G4CounterCall]
+}
+
+///| Constructs the surface wrapper around a value.
+pub fn G4CounterTracked::new(value : G4Counter) -> G4CounterTracked {
+  { t: Tracked::new(value) }
+}
+
+pub fn G4CounterTracked::add(self : G4CounterTracked, n : Int) -> Unit {
+  self.t.call_mut(G4CounterCall::Add(n), fn(v : G4Counter) -> Unit {
+    v.add(n)
+  }, hash_unit_value)
+}
+
+pub fn G4CounterTracked::count(self : G4CounterTracked) -> Int {
+  self.t.call(G4CounterCall::Count, fn(v : G4Counter) -> Int {
+    v.count()
+  }, hash_int)
+}
+
 ///| Call enum for trait `DataSource` (generated).
 pub(all) enum DataSourceCall {
   Fetch(String)

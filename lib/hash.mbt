@@ -137,6 +137,13 @@ pub fn write_rust_string(bytes : Array[Byte], s : String) -> Unit {
 }
 
 ///|
+/// Rust `Hash for i64` where the source is MoonBit `Int` (converted via
+/// `to_int64`, matching Rust's `isize`-independent layout for small ints).
+pub fn write_rust_int(bytes : Array[Byte], v : Int) -> Unit {
+  append_i64_le(bytes, v.to_int64())
+}
+
+///|
 /// Rust `Hash for i64` = write_i64 (8 LE bytes).
 pub fn write_rust_i64(bytes : Array[Byte], v : Int64) -> Unit {
   append_i64_le(bytes, v)

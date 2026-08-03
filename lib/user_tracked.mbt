@@ -36,3 +36,20 @@ pub trait DataSource {
   fn fetch(Self, key : String) -> Int
   fn size(Self) -> Int
 }
+
+///|
+#comemo.track
+pub(all) struct G4Counter {
+  mut total : Int
+}
+
+///|
+pub fn G4Counter::add(self : G4Counter, n : Int) -> Unit {
+  let c = self.total
+  self.total = c + n
+}
+
+///|
+pub fn G4Counter::count(self : G4Counter) -> Int {
+  self.total
+}

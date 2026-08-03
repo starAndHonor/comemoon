@@ -339,3 +339,345 @@ test "g2_trait_track" {
     panic()
   } // hit
 }
+
+//| ---------------------------------------------------------------------------
+//| G4: TrackedMut 语义测试
+//| ---------------------------------------------------------------------------
+
+///|
+let g4_cache : Cache[G4CounterCall, Int] = Cache::new()
+
+///|
+fn g4_eval(c : TrackedMut[G4Counter, G4CounterCall], n : Int) -> Int {
+  let st = c
+  memoize(
+    g4_cache,
+    Input::new(
+      fn() { hash_int(n) },
+      fn(rec : Recorder[G4CounterCall]) -> Recorder[G4CounterCall]? {
+        st.attach(rec)
+      },
+      fn(call : G4CounterCall) -> UInt128 {
+        match call {
+          Add(nn) =>
+            st.validate(
+              G4CounterCall::Add(nn),
+              fn(s : G4Counter) -> Unit { s.add(nn) },
+              hash_unit_value,
+            )
+          Count =>
+            st.validate(
+              G4CounterCall::Count,
+              fn(s : G4Counter) -> Int { s.count() },
+              hash_int,
+            )
+        }
+      },
+      fn(call : G4CounterCall) -> Unit {
+        match call {
+          Add(nn) =>
+            st.call_mut(
+              G4CounterCall::Add(nn),
+              fn(s : G4Counter) -> Unit { s.add(nn) },
+              hash_unit_value,
+            )
+          Count => ()
+        }
+      },
+      fn(prev : Recorder[G4CounterCall]?) -> Unit { st.detach(prev) },
+    ),
+    true,
+    fn() {
+      st.call_mut(
+        G4CounterCall::Add(n),
+        fn(s : G4Counter) -> Unit { s.add(n) },
+        hash_unit_value,
+      )
+      st.call(
+        G4CounterCall::Count,
+        fn(s : G4Counter) -> Int { s.count() },
+        hash_int,
+      )
+    },
+  )
+}
+
+///|
+test "g4_trackedmut_mutable_replay" {
+  let c : TrackedMut[G4Counter, G4CounterCall] = TrackedMut::new({ total: 0 })
+  //| miss:func 执行 Add(5) → total=5,output=5(Count 返回值)
+  let r1 = g4_eval(c, 5)
+  if r1 != 5 || c.get().total != 5 {
+    panic()
+  }
+  //| hit:mutable 重放 Add(5) → total=10,output 是缓存的 5
+  let r2 = g4_eval(c, 5)
+  if r2 != 5 || c.get().total != 10 {
+    panic()
+  }
+  //| downgrade 共享同一值
+  let d = c.downgrade()
+  if d.get().total != 10 {
+    panic()
+  }
+  //| 改参数:miss,执行 Add(3) → total=13,output=13
+  let r3 = g4_eval(c, 3)
+  if r3 != 13 || c.get().total != 13 {
+    panic()
+  }
+}
+
+///|
+test "g4_trackedmut_downgrade_shared" {
+  let c : TrackedMut[G4Counter, G4CounterCall] = TrackedMut::new({ total: 1 })
+  let d = c.downgrade()
+  d.get().total = 99
+  if c.get().total != 99 {
+    panic()
+  }
+}
+
+//| ---------------------------------------------------------------------------
+//| G5: 5 参数 memoize(bundle_impl 模式:4 Tracked + 1 TrackedMut)
+//| ---------------------------------------------------------------------------
+
+//| 合并 Call 枚举:所有参数的调用统一路由
+
+///|
+pub(all) enum BundleCall {
+  WorldQuery(String)
+  IntroQuery(String)
+  TracedPush(String)
+  RouteResolve(String)
+  SinkPush(String)
+} derive(Hash, Eq)
+
+///|
+pub impl RustHashable for BundleCall with fn write_rust(self, bytes) {
+  match self {
+    WorldQuery(k) => {
+      append_u64_le(bytes, 0)
+      write_rust_string(bytes, k)
+    }
+    IntroQuery(k) => {
+      append_u64_le(bytes, 1)
+      write_rust_string(bytes, k)
+    }
+    TracedPush(k) => {
+      append_u64_le(bytes, 2)
+      write_rust_string(bytes, k)
+    }
+    RouteResolve(k) => {
+      append_u64_le(bytes, 3)
+      write_rust_string(bytes, k)
+    }
+    SinkPush(k) => {
+      append_u64_le(bytes, 4)
+      write_rust_string(bytes, k)
+    }
+  }
+}
+
+//| 5 个 tracked 参数:world/introspector/traced/route 是 Tracked,sink 是 TrackedMut
+
+///|
+struct G5World {
+  data : String
+}
+
+///|
+struct G5Intro {
+  data : String
+}
+
+///|
+struct G5Traced {
+  data : String
+}
+
+///|
+struct G5Route {
+  data : String
+}
+
+///|
+struct G5Sink {
+  mut buf : String
+}
+
+///|
+fn G5World::query(self : G5World, k : String) -> String {
+  self.data + k
+}
+
+///|
+fn G5Intro::query(self : G5Intro, k : String) -> String {
+  self.data + k
+}
+
+///|
+fn G5Traced::push(self : G5Traced, k : String) -> String {
+  self.data + k
+}
+
+///|
+fn G5Route::resolve(self : G5Route, k : String) -> String {
+  self.data + k
+}
+
+///|
+fn G5Sink::push(self : G5Sink, k : String) -> Unit {
+  let b = self.buf
+  self.buf = b + k
+}
+
+///|
+let g5_cache : Cache[BundleCall, String] = Cache::new()
+
+///|
+fn g5_eval(
+  w : Tracked[G5World, BundleCall],
+  i : Tracked[G5Intro, BundleCall],
+  t : Tracked[G5Traced, BundleCall],
+  r : Tracked[G5Route, BundleCall],
+  s : TrackedMut[G5Sink, BundleCall],
+  k : String,
+) -> String {
+  memoize5(
+    g5_cache,
+    Input5::new(
+      fn() { hash_string(k) },
+      fn(
+        rec : Recorder[BundleCall],
+      ) -> (
+        Recorder[BundleCall]?,
+        Recorder[BundleCall]?,
+        Recorder[BundleCall]?,
+        Recorder[BundleCall]?,
+        Recorder[BundleCall]?,
+      ) {
+        (
+          w.attach(rec),
+          i.attach(rec),
+          t.attach(rec),
+          r.attach(rec),
+          s.attach(rec),
+        )
+      },
+      fn(call : BundleCall) -> UInt128 {
+        match call {
+          WorldQuery(kk) =>
+            w.validate(
+              BundleCall::WorldQuery(kk),
+              fn(x : G5World) -> String { x.query(kk) },
+              hash_string,
+            )
+          IntroQuery(kk) =>
+            i.validate(
+              BundleCall::IntroQuery(kk),
+              fn(x : G5Intro) -> String { x.query(kk) },
+              hash_string,
+            )
+          TracedPush(kk) =>
+            t.validate(
+              BundleCall::TracedPush(kk),
+              fn(x : G5Traced) -> String { x.push(kk) },
+              hash_string,
+            )
+          RouteResolve(kk) =>
+            r.validate(
+              BundleCall::RouteResolve(kk),
+              fn(x : G5Route) -> String { x.resolve(kk) },
+              hash_string,
+            )
+          SinkPush(kk) =>
+            s.validate(
+              BundleCall::SinkPush(kk),
+              fn(x : G5Sink) -> Unit { x.push(kk) },
+              hash_unit_value,
+            )
+        }
+      },
+      fn(call : BundleCall) -> Unit {
+        match call {
+          SinkPush(kk) =>
+            s.call_mut(
+              BundleCall::SinkPush(kk),
+              fn(x : G5Sink) -> Unit { x.push(kk) },
+              hash_unit_value,
+            )
+          _ => ()
+        }
+      },
+      fn(
+        prev : (
+          Recorder[BundleCall]?,
+          Recorder[BundleCall]?,
+          Recorder[BundleCall]?,
+          Recorder[BundleCall]?,
+          Recorder[BundleCall]?,
+        ),
+      ) -> Unit {
+        w.detach(prev.0)
+        i.detach(prev.1)
+        t.detach(prev.2)
+        r.detach(prev.3)
+        s.detach(prev.4)
+      },
+    ),
+    true,
+    fn() {
+      s.call_mut(
+        BundleCall::SinkPush(k),
+        fn(x : G5Sink) -> Unit { x.push(k) },
+        hash_unit_value,
+      )
+      w.call(
+        BundleCall::WorldQuery(k),
+        fn(x : G5World) -> String { x.query(k) },
+        hash_string,
+      ) +
+      i.call(
+        BundleCall::IntroQuery(k),
+        fn(x : G5Intro) -> String { x.query(k) },
+        hash_string,
+      ) +
+      t.call(
+        BundleCall::TracedPush(k),
+        fn(x : G5Traced) -> String { x.push(k) },
+        hash_string,
+      ) +
+      r.call(
+        BundleCall::RouteResolve(k),
+        fn(x : G5Route) -> String { x.resolve(k) },
+        hash_string,
+      ) +
+      "out"
+    },
+  )
+}
+
+///|
+test "g5_memoize5_bundle_impl" {
+  let w : Tracked[G5World, BundleCall] = Tracked::new({ data: "W" })
+  let i : Tracked[G5Intro, BundleCall] = Tracked::new({ data: "I" })
+  let t : Tracked[G5Traced, BundleCall] = Tracked::new({ data: "T" })
+  let r : Tracked[G5Route, BundleCall] = Tracked::new({ data: "R" })
+  let s : TrackedMut[G5Sink, BundleCall] = TrackedMut::new({ buf: "" })
+  //| miss:5 个调用都执行
+  let r1 = g5_eval(w, i, t, r, s, "k")
+  //| Wk+Ik+Tk+Rk+out(sink push 返回 unit 记 ""),sink buf = "k"
+  if r1 != "WkIkTkRkout" || s.get().buf != "k" {
+    panic()
+  }
+  //| hit:mutable(SinkPush) 重放 → buf = "kk",output 缓存
+  let r2 = g5_eval(w, i, t, r, s, "k")
+  if r2 != "WkIkTkRkout" || s.get().buf != "kk" {
+    panic()
+  }
+  //| 改参数:miss
+  let r3 = g5_eval(w, i, t, r, s, "z")
+  if r3 != "WzIzTzRzout" || s.get().buf != "kkz" {
+    panic()
+  }
+}

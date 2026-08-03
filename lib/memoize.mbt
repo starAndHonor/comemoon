@@ -228,3 +228,266 @@ pub fn[C1 : RustHashable, C2 : RustHashable, CM : RustHashable, O] memoize2(
   register_miss()
   output
 }
+
+///| ---------------------------------------------------------------------------
+
+///| An input with 3 tracked parameters. `attach` returns all params'
+
+///| previous recorders (for restore); `detach` restores them; `oracle`/
+
+///| `replay_mut` dispatch on the merged call.
+
+///|
+/// ---------------------------------------------------------------------------
+pub struct Input3[C1, C2, C3, CM] {
+  key : () -> UInt128
+  attach : (Recorder[CM]) -> (Recorder[C1]?, Recorder[C2]?, Recorder[C3]?)
+  oracle : (CM) -> UInt128
+  replay_mut : (CM) -> Unit
+  detach : ((Recorder[C1]?, Recorder[C2]?, Recorder[C3]?)) -> Unit
+}
+
+///|
+pub fn[C1, C2, C3, CM] Input3::new(
+  key : () -> UInt128,
+  attach : (Recorder[CM]) -> (Recorder[C1]?, Recorder[C2]?, Recorder[C3]?),
+  oracle : (CM) -> UInt128,
+  replay_mut : (CM) -> Unit,
+  detach : ((Recorder[C1]?, Recorder[C2]?, Recorder[C3]?)) -> Unit,
+) -> Input3[C1, C2, C3, CM] {
+  { key, attach, oracle, replay_mut, detach }
+}
+
+///|
+/// Memoize with 3 tracked parameters.
+pub fn[
+  C1 : RustHashable,
+  C2 : RustHashable,
+  C3 : RustHashable,
+  CM : RustHashable,
+  O,
+] memoize3(
+  cache : Cache[CM, O],
+  input : Input3[C1, C2, C3, CM],
+  enabled : Bool,
+  func : () -> O,
+) -> O {
+  if !enabled {
+    register_miss()
+    return func()
+  }
+  let key = (input.key)()
+  let lookup_res = cache.lookup(key, input.oracle)
+  match lookup_res {
+    Some(entry) => {
+      for call in entry.mutable {
+        (input.replay_mut)(call)
+      }
+      register_hit()
+      return entry.output
+    }
+    None => ()
+  }
+  let constraint = Constraint::new()
+  let prev = (input.attach)(fn(
+    call : CM,
+    call_hash : UInt128,
+    ret : UInt128,
+    mutable : Bool,
+  ) -> Unit {
+    constraint.record(call, call_hash, ret, mutable)
+  })
+  let output = func()
+  (input.detach)(prev)
+  match cache.insert(key, constraint, output) {
+    Ok(_) => ()
+    Err(_) => ()
+  }
+  register_miss()
+  output
+}
+
+///| ---------------------------------------------------------------------------
+
+///| An input with 4 tracked parameters. `attach` returns all params'
+
+///| previous recorders (for restore); `detach` restores them; `oracle`/
+
+///| `replay_mut` dispatch on the merged call.
+
+///|
+/// ---------------------------------------------------------------------------
+pub struct Input4[C1, C2, C3, C4, CM] {
+  key : () -> UInt128
+  attach : (Recorder[CM]) -> (
+    Recorder[C1]?,
+    Recorder[C2]?,
+    Recorder[C3]?,
+    Recorder[C4]?,
+  )
+  oracle : (CM) -> UInt128
+  replay_mut : (CM) -> Unit
+  detach : ((Recorder[C1]?, Recorder[C2]?, Recorder[C3]?, Recorder[C4]?)) -> Unit
+}
+
+///|
+pub fn[C1, C2, C3, C4, CM] Input4::new(
+  key : () -> UInt128,
+  attach : (Recorder[CM]) -> (
+    Recorder[C1]?,
+    Recorder[C2]?,
+    Recorder[C3]?,
+    Recorder[C4]?,
+  ),
+  oracle : (CM) -> UInt128,
+  replay_mut : (CM) -> Unit,
+  detach : ((Recorder[C1]?, Recorder[C2]?, Recorder[C3]?, Recorder[C4]?)) -> Unit,
+) -> Input4[C1, C2, C3, C4, CM] {
+  { key, attach, oracle, replay_mut, detach }
+}
+
+///|
+/// Memoize with 4 tracked parameters.
+pub fn[
+  C1 : RustHashable,
+  C2 : RustHashable,
+  C3 : RustHashable,
+  C4 : RustHashable,
+  CM : RustHashable,
+  O,
+] memoize4(
+  cache : Cache[CM, O],
+  input : Input4[C1, C2, C3, C4, CM],
+  enabled : Bool,
+  func : () -> O,
+) -> O {
+  if !enabled {
+    register_miss()
+    return func()
+  }
+  let key = (input.key)()
+  let lookup_res = cache.lookup(key, input.oracle)
+  match lookup_res {
+    Some(entry) => {
+      for call in entry.mutable {
+        (input.replay_mut)(call)
+      }
+      register_hit()
+      return entry.output
+    }
+    None => ()
+  }
+  let constraint = Constraint::new()
+  let prev = (input.attach)(fn(
+    call : CM,
+    call_hash : UInt128,
+    ret : UInt128,
+    mutable : Bool,
+  ) -> Unit {
+    constraint.record(call, call_hash, ret, mutable)
+  })
+  let output = func()
+  (input.detach)(prev)
+  match cache.insert(key, constraint, output) {
+    Ok(_) => ()
+    Err(_) => ()
+  }
+  register_miss()
+  output
+}
+
+///| ---------------------------------------------------------------------------
+
+///| An input with 5 tracked parameters. `attach` returns all params'
+
+///| previous recorders (for restore); `detach` restores them; `oracle`/
+
+///| `replay_mut` dispatch on the merged call.
+
+///|
+/// ---------------------------------------------------------------------------
+pub struct Input5[C1, C2, C3, C4, C5, CM] {
+  key : () -> UInt128
+  attach : (Recorder[CM]) -> (
+    Recorder[C1]?,
+    Recorder[C2]?,
+    Recorder[C3]?,
+    Recorder[C4]?,
+    Recorder[C5]?,
+  )
+  oracle : (CM) -> UInt128
+  replay_mut : (CM) -> Unit
+  detach : (
+    (Recorder[C1]?, Recorder[C2]?, Recorder[C3]?, Recorder[C4]?, Recorder[C5]?),
+  ) -> Unit
+}
+
+///|
+pub fn[C1, C2, C3, C4, C5, CM] Input5::new(
+  key : () -> UInt128,
+  attach : (Recorder[CM]) -> (
+    Recorder[C1]?,
+    Recorder[C2]?,
+    Recorder[C3]?,
+    Recorder[C4]?,
+    Recorder[C5]?,
+  ),
+  oracle : (CM) -> UInt128,
+  replay_mut : (CM) -> Unit,
+  detach : (
+    (Recorder[C1]?, Recorder[C2]?, Recorder[C3]?, Recorder[C4]?, Recorder[C5]?),
+  ) -> Unit,
+) -> Input5[C1, C2, C3, C4, C5, CM] {
+  { key, attach, oracle, replay_mut, detach }
+}
+
+///|
+/// Memoize with 5 tracked parameters.
+pub fn[
+  C1 : RustHashable,
+  C2 : RustHashable,
+  C3 : RustHashable,
+  C4 : RustHashable,
+  C5 : RustHashable,
+  CM : RustHashable,
+  O,
+] memoize5(
+  cache : Cache[CM, O],
+  input : Input5[C1, C2, C3, C4, C5, CM],
+  enabled : Bool,
+  func : () -> O,
+) -> O {
+  if !enabled {
+    register_miss()
+    return func()
+  }
+  let key = (input.key)()
+  let lookup_res = cache.lookup(key, input.oracle)
+  match lookup_res {
+    Some(entry) => {
+      for call in entry.mutable {
+        (input.replay_mut)(call)
+      }
+      register_hit()
+      return entry.output
+    }
+    None => ()
+  }
+  let constraint = Constraint::new()
+  let prev = (input.attach)(fn(
+    call : CM,
+    call_hash : UInt128,
+    ret : UInt128,
+    mutable : Bool,
+  ) -> Unit {
+    constraint.record(call, call_hash, ret, mutable)
+  })
+  let output = func()
+  (input.detach)(prev)
+  match cache.insert(key, constraint, output) {
+    Ok(_) => ()
+    Err(_) => ()
+  }
+  register_miss()
+  output
+}

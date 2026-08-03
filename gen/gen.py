@@ -26,7 +26,7 @@ def hash_fn_for_top(t):
 def write_fn_for_top(t):
     return {
         "String": "write_rust_string",
-        "Int": "write_rust_i64",
+        "Int": "write_rust_int",
         "Int64": "write_rust_i64",
         "UInt64": "write_rust_u64",
         "Bool": "write_rust_bool",
@@ -96,7 +96,7 @@ for m in marker_re.finditer(src):
     def write_fn_for(t):
         return {
             "String": "write_rust_string",
-            "Int": "write_rust_i64",
+            "Int": "write_rust_int",
             "Int64": "write_rust_i64",
             "UInt64": "write_rust_u64",
             "Bool": "write_rust_bool",
