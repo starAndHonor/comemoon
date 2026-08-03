@@ -1,0 +1,11 @@
+import {
+  "moonbitlang/core/hashmap",
+  "moonbitlang/core/array",
+  "moonbitlang/core/bench",
+}
+
+dev_build(
+  rule: "comemo-gen",
+  input: "user_tracked.mbt",
+  output: "comemo_gen.mbt",
+)
