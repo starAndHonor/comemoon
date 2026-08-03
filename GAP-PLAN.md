@@ -103,10 +103,15 @@ trait 不能作类型参数(之前验证过)→ `Tracked[A, C]` 的 A 必须具�
 ### 现状
 `#comemo.track` 假设无生命周期;Typst 用 `impl<'a> Context<'a>`。
 
-### 分析
-MoonBit 无生命周期 → **该场景在 MoonBit 中不适用**(值语义无需生命周期)。Rust 的生命周期用于借用,而 MoonBit 的 `Tracked` 用 `Ref[A]` 持有值,天然无生命周期问题。
+### 分析(2026-08-02 修正)
+拆成两种情形:
 
-**决策**:G3 标记为"不适用"(语言差异),不实现。验证:Typst 的 `Context<'a>` 在 MoonBit 中就是 `struct Context`(无生命周期)。
+| 情形 | 支持 | 理由 |
+|---|---|---|
+| **内部借用** `Context<'a>`('a 只用于内部 `&'a` 字段) | 不适用 | MoonBit 值语义:内部引用用 `Ref[X]` 持有,无需生命周期参数。Typst 的 Context/Locator 均属此类(`'a` 来自 `StyleChain<'a>` 内部 `&'a [..]`) |
+| **外部类型参数** `Context<'a, T>`(T 是真实外部类型) | ✅ 可支持 | 等价 MoonBit `Context[T]` + 泛型 impl(已实测:`struct Context[W]` + `fn[W] Context::name` 编译运行正常) |
+
+**结论**:Typst 场景(内部借用)在 MoonBit 中确为"不适用"——但不是因为"无生命周期",而是内部借用由 `Ref[X]` 替代。若未来遇到真实的外部类型参数情形,生成器需扩展解析 `struct Name[TypeParams]`,当前未实现。
 
 ## G4-G6:记录为已知限制
 
