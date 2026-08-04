@@ -1,0 +1,309 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "username/comemoon/lib"
+
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/hashmap",
+  "moonbitlang/core/ref",
+}
+
+// Values
+pub fn accelerator_get(Int, UInt128) -> UInt128?
+
+pub fn accelerator_id() -> Int
+
+pub fn accelerator_insert(Int, UInt128, UInt128) -> Unit
+
+pub fn evict(Int) -> Unit
+
+pub fn evict_accelerators() -> Unit
+
+pub fn[T : RustHashable] hash(T) -> UInt128
+
+pub fn[T : RustHashable] hash128(T) -> UInt128
+
+pub fn hash_bool(Bool) -> UInt128
+
+pub fn hash_bytes(Array[Byte]) -> UInt128
+
+pub fn hash_char(Char) -> UInt128
+
+pub fn hash_combine2(UInt128, UInt128) -> UInt128
+
+pub fn hash_int(Int) -> UInt128
+
+pub fn hash_string(String) -> UInt128
+
+pub fn hash_unit() -> UInt128
+
+pub fn hash_unit_value(Unit) -> UInt128
+
+pub fn hash_zero() -> UInt128
+
+pub fn last_was_hit() -> Bool
+
+pub fn[C : RustHashable, O] memoize(Cache[C, O], Input[C], Bool, () -> O) -> O
+
+pub fn[C1 : RustHashable, C2 : RustHashable, CM : RustHashable, O] memoize2(Cache[CM, O], Input2[C1, C2, CM], Bool, () -> O) -> O
+
+pub fn[C1 : RustHashable, C2 : RustHashable, C3 : RustHashable, CM : RustHashable, O] memoize3(Cache[CM, O], Input3[C1, C2, C3, CM], Bool, () -> O) -> O
+
+pub fn[C1 : RustHashable, C2 : RustHashable, C3 : RustHashable, C4 : RustHashable, CM : RustHashable, O] memoize4(Cache[CM, O], Input4[C1, C2, C3, C4, CM], Bool, () -> O) -> O
+
+pub fn[C1 : RustHashable, C2 : RustHashable, C3 : RustHashable, C4 : RustHashable, C5 : RustHashable, CM : RustHashable, O] memoize5(Cache[CM, O], Input5[C1, C2, C3, C4, C5, CM], Bool, () -> O) -> O
+
+pub fn[C : RustHashable, O] memoize_pure(Cache[C, O], UInt128, Bool, () -> O) -> O
+
+pub fn parse_ok(String) -> Int
+
+pub fn register_evictor((Int) -> Unit) -> Unit
+
+pub fn register_hit() -> Unit
+
+pub fn register_miss() -> Unit
+
+pub fn reset_oracle() -> Unit
+
+pub fn seed_sum128(UInt128, Bytes) -> UInt128
+
+pub fn sum128(Bytes) -> UInt128
+
+pub fn[T] test_hash_array(Array[T], (T) -> UInt128) -> UInt128
+
+pub fn test_hash_bool(Bool) -> UInt128
+
+pub fn test_hash_int(Int) -> UInt128
+
+pub fn test_hash_int64(Int64) -> UInt128
+
+pub fn[T] test_hash_opt(T?, (T) -> UInt128) -> UInt128
+
+pub fn test_hash_str(String) -> UInt128
+
+pub fn test_hash_unit(Unit) -> UInt128
+
+pub fn write_rust_bool(Array[Byte], Bool) -> Unit
+
+pub fn write_rust_char(Array[Byte], Char) -> Unit
+
+pub fn write_rust_i64(Array[Byte], Int64) -> Unit
+
+pub fn write_rust_int(Array[Byte], Int) -> Unit
+
+pub fn write_rust_string(Array[Byte], String) -> Unit
+
+// Errors
+
+// Types and methods
+pub struct Cache[C, O] {
+  tree : CallTree[C, CacheEntry[C, O]]
+}
+pub fn[C, O] Cache::evict(Self[C, O], Int) -> Unit
+pub fn[C, O] Cache::new() -> Self[C, O]
+
+type CacheEntry[C, O]
+
+pub struct CallSequence[C] {
+  vec : Array[(C, UInt128)?]
+  map : @hashmap.HashMap[UInt128, Int]
+  mut cursor : Int
+}
+pub fn[C : RustHashable] CallSequence::extract(Self[C], C) -> UInt128?
+pub fn[C : RustHashable] CallSequence::insert(Self[C], C, UInt128) -> Bool
+pub fn[C] CallSequence::new() -> Self[C]
+pub fn[C] CallSequence::next(Self[C]) -> (C, UInt128)?
+
+pub struct CallTree[C, T] {
+  inner : Slab[InnerNode[C]]
+  leaves : Slab[LeafNode[T]]
+  mut start : @hashmap.HashMap[UInt128, Int]
+  mut edges : @hashmap.HashMap[(Int, UInt128), Int]
+}
+pub fn[C, T] CallTree::get(Self[C, T], UInt128, (C) -> UInt128) -> T?
+pub fn[C : RustHashable, T] CallTree::insert(Self[C, T], UInt128, CallSequence[C], T) -> Result[Unit, InsertError]
+pub fn[C, T] CallTree::new() -> Self[C, T]
+pub fn[C, T] CallTree::retain(Self[C, T], (T) -> Bool) -> Unit
+
+pub struct Constraint[C] {
+  immutable : CallSequence[C]
+  mutable : Array[C]
+}
+pub fn[C] Constraint::new() -> Self[C]
+pub fn[C] Constraint::record(Self[C], C, UInt128, UInt128, Bool) -> Unit
+pub fn[C] Constraint::take(Self[C]) -> (CallSequence[C], Array[C])
+
+pub(all) enum DataSourceCall {
+  Fetch(String)
+  Size
+} derive(Eq, Hash)
+pub impl RustHashable for DataSourceCall
+
+pub(all) struct DataSourceTracked[T] {
+  t : Tracked[T, DataSourceCall]
+}
+pub fn[T : DataSource] DataSourceTracked::fetch(Self[T], String) -> Int
+pub fn[T] DataSourceTracked::new(T) -> Self[T]
+pub fn[T : DataSource] DataSourceTracked::size(Self[T]) -> Int
+
+type Digest128
+pub fn Digest128::new() -> Self
+pub fn Digest128::new_with_seed(UInt64, UInt64) -> Self
+pub fn Digest128::reset(Self) -> Unit
+pub fn Digest128::size(Self) -> Int
+pub fn Digest128::sum(Self) -> Bytes
+pub fn Digest128::sum128(Self) -> UInt128
+pub fn Digest128::write(Self, Bytes) -> Unit
+
+pub(all) struct Files {
+  map : @hashmap.HashMap[String, String]
+}
+pub fn Files::read(Self, String) -> String
+pub fn Files::write(Self, String, String) -> Unit
+
+pub(all) enum FilesCall {
+  Write(String, String)
+  Read(String)
+} derive(Eq, Hash)
+pub impl RustHashable for FilesCall
+
+pub(all) struct FilesTracked {
+  t : Tracked[Files, FilesCall]
+}
+pub fn FilesTracked::new(Files) -> Self
+pub fn FilesTracked::read(Self, String) -> String
+pub fn FilesTracked::write(Self, String, String) -> Unit
+
+pub(all) struct G4Counter {
+  mut total : Int
+}
+pub fn G4Counter::add(Self, Int) -> Unit
+pub fn G4Counter::count(Self) -> Int
+
+pub(all) enum G4CounterCall {
+  Add(Int)
+  Count
+} derive(Eq, Hash)
+pub impl RustHashable for G4CounterCall
+
+pub(all) struct G4CounterTracked {
+  t : Tracked[G4Counter, G4CounterCall]
+}
+pub fn G4CounterTracked::add(Self, Int) -> Unit
+pub fn G4CounterTracked::count(Self) -> Int
+pub fn G4CounterTracked::new(G4Counter) -> Self
+
+type InnerNode[C]
+
+pub struct Input[C] {
+  key : () -> UInt128
+  attach : ((C, UInt128, UInt128, Bool) -> Unit) -> ((C, UInt128, UInt128, Bool) -> Unit)?
+  oracle : (C) -> UInt128
+  replay_mut : (C) -> Unit
+  detach : (((C, UInt128, UInt128, Bool) -> Unit)?) -> Unit
+}
+pub fn[C] Input::new(() -> UInt128, ((C, UInt128, UInt128, Bool) -> Unit) -> ((C, UInt128, UInt128, Bool) -> Unit)?, (C) -> UInt128, (C) -> Unit, (((C, UInt128, UInt128, Bool) -> Unit)?) -> Unit) -> Self[C]
+
+pub struct Input2[C1, C2, CM] {
+  key : () -> UInt128
+  attach : ((CM, UInt128, UInt128, Bool) -> Unit) -> (((C1, UInt128, UInt128, Bool) -> Unit)?, ((C2, UInt128, UInt128, Bool) -> Unit)?)
+  oracle : (CM) -> UInt128
+  replay_mut : (CM) -> Unit
+  detach : ((((C1, UInt128, UInt128, Bool) -> Unit)?, ((C2, UInt128, UInt128, Bool) -> Unit)?)) -> Unit
+}
+pub fn[C1, C2, CM] Input2::new(() -> UInt128, ((CM, UInt128, UInt128, Bool) -> Unit) -> (((C1, UInt128, UInt128, Bool) -> Unit)?, ((C2, UInt128, UInt128, Bool) -> Unit)?), (CM) -> UInt128, (CM) -> Unit, ((((C1, UInt128, UInt128, Bool) -> Unit)?, ((C2, UInt128, UInt128, Bool) -> Unit)?)) -> Unit) -> Self[C1, C2, CM]
+
+pub struct Input3[C1, C2, C3, CM] {
+  key : () -> UInt128
+  attach : ((CM, UInt128, UInt128, Bool) -> Unit) -> (((C1, UInt128, UInt128, Bool) -> Unit)?, ((C2, UInt128, UInt128, Bool) -> Unit)?, ((C3, UInt128, UInt128, Bool) -> Unit)?)
+  oracle : (CM) -> UInt128
+  replay_mut : (CM) -> Unit
+  detach : ((((C1, UInt128, UInt128, Bool) -> Unit)?, ((C2, UInt128, UInt128, Bool) -> Unit)?, ((C3, UInt128, UInt128, Bool) -> Unit)?)) -> Unit
+}
+pub fn[C1, C2, C3, CM] Input3::new(() -> UInt128, ((CM, UInt128, UInt128, Bool) -> Unit) -> (((C1, UInt128, UInt128, Bool) -> Unit)?, ((C2, UInt128, UInt128, Bool) -> Unit)?, ((C3, UInt128, UInt128, Bool) -> Unit)?), (CM) -> UInt128, (CM) -> Unit, ((((C1, UInt128, UInt128, Bool) -> Unit)?, ((C2, UInt128, UInt128, Bool) -> Unit)?, ((C3, UInt128, UInt128, Bool) -> Unit)?)) -> Unit) -> Self[C1, C2, C3, CM]
+
+pub struct Input4[C1, C2, C3, C4, CM] {
+  key : () -> UInt128
+  attach : ((CM, UInt128, UInt128, Bool) -> Unit) -> (((C1, UInt128, UInt128, Bool) -> Unit)?, ((C2, UInt128, UInt128, Bool) -> Unit)?, ((C3, UInt128, UInt128, Bool) -> Unit)?, ((C4, UInt128, UInt128, Bool) -> Unit)?)
+  oracle : (CM) -> UInt128
+  replay_mut : (CM) -> Unit
+  detach : ((((C1, UInt128, UInt128, Bool) -> Unit)?, ((C2, UInt128, UInt128, Bool) -> Unit)?, ((C3, UInt128, UInt128, Bool) -> Unit)?, ((C4, UInt128, UInt128, Bool) -> Unit)?)) -> Unit
+}
+pub fn[C1, C2, C3, C4, CM] Input4::new(() -> UInt128, ((CM, UInt128, UInt128, Bool) -> Unit) -> (((C1, UInt128, UInt128, Bool) -> Unit)?, ((C2, UInt128, UInt128, Bool) -> Unit)?, ((C3, UInt128, UInt128, Bool) -> Unit)?, ((C4, UInt128, UInt128, Bool) -> Unit)?), (CM) -> UInt128, (CM) -> Unit, ((((C1, UInt128, UInt128, Bool) -> Unit)?, ((C2, UInt128, UInt128, Bool) -> Unit)?, ((C3, UInt128, UInt128, Bool) -> Unit)?, ((C4, UInt128, UInt128, Bool) -> Unit)?)) -> Unit) -> Self[C1, C2, C3, C4, CM]
+
+pub struct Input5[C1, C2, C3, C4, C5, CM] {
+  key : () -> UInt128
+  attach : ((CM, UInt128, UInt128, Bool) -> Unit) -> (((C1, UInt128, UInt128, Bool) -> Unit)?, ((C2, UInt128, UInt128, Bool) -> Unit)?, ((C3, UInt128, UInt128, Bool) -> Unit)?, ((C4, UInt128, UInt128, Bool) -> Unit)?, ((C5, UInt128, UInt128, Bool) -> Unit)?)
+  oracle : (CM) -> UInt128
+  replay_mut : (CM) -> Unit
+  detach : ((((C1, UInt128, UInt128, Bool) -> Unit)?, ((C2, UInt128, UInt128, Bool) -> Unit)?, ((C3, UInt128, UInt128, Bool) -> Unit)?, ((C4, UInt128, UInt128, Bool) -> Unit)?, ((C5, UInt128, UInt128, Bool) -> Unit)?)) -> Unit
+}
+pub fn[C1, C2, C3, C4, C5, CM] Input5::new(() -> UInt128, ((CM, UInt128, UInt128, Bool) -> Unit) -> (((C1, UInt128, UInt128, Bool) -> Unit)?, ((C2, UInt128, UInt128, Bool) -> Unit)?, ((C3, UInt128, UInt128, Bool) -> Unit)?, ((C4, UInt128, UInt128, Bool) -> Unit)?, ((C5, UInt128, UInt128, Bool) -> Unit)?), (CM) -> UInt128, (CM) -> Unit, ((((C1, UInt128, UInt128, Bool) -> Unit)?, ((C2, UInt128, UInt128, Bool) -> Unit)?, ((C3, UInt128, UInt128, Bool) -> Unit)?, ((C4, UInt128, UInt128, Bool) -> Unit)?, ((C5, UInt128, UInt128, Bool) -> Unit)?)) -> Unit) -> Self[C1, C2, C3, C4, C5, CM]
+
+pub enum InsertError {
+  AlreadyExists
+  MissingCall
+} derive(Eq, @debug.Debug)
+
+type LeafNode[T]
+
+pub enum NoCall {
+} derive(Eq, Hash)
+
+type Slab[T]
+
+pub struct Tracked[A, C] {
+  value : @ref.Ref[A]
+  record : @ref.Ref[((C, UInt128, UInt128, Bool) -> Unit)?]
+  id : Int
+}
+pub fn[A, C] Tracked::attach(Self[A, C], (C, UInt128, UInt128, Bool) -> Unit) -> ((C, UInt128, UInt128, Bool) -> Unit)?
+pub fn[A, C : RustHashable, R] Tracked::call(Self[A, C], C, (A) -> R, (R) -> UInt128) -> R
+pub fn[A, C : RustHashable, R] Tracked::call_mut(Self[A, C], C, (A) -> R, (R) -> UInt128) -> R
+pub fn[A, C] Tracked::detach(Self[A, C], ((C, UInt128, UInt128, Bool) -> Unit)?) -> Unit
+pub fn[A, C] Tracked::get(Self[A, C]) -> A
+pub fn[A, C] Tracked::new(A) -> Self[A, C]
+pub fn[A, C] Tracked::track_mut(Self[A, C]) -> TrackedMut[A, C]
+pub fn[A, C : RustHashable, R] Tracked::validate(Self[A, C], C, (A) -> R, (R) -> UInt128) -> UInt128
+
+pub struct TrackedMut[A, C] {
+  value : @ref.Ref[A]
+  record : @ref.Ref[((C, UInt128, UInt128, Bool) -> Unit)?]
+  id : Int
+}
+pub fn[A, C] TrackedMut::attach(Self[A, C], (C, UInt128, UInt128, Bool) -> Unit) -> ((C, UInt128, UInt128, Bool) -> Unit)?
+pub fn[A, C : RustHashable, R] TrackedMut::call(Self[A, C], C, (A) -> R, (R) -> UInt128) -> R
+pub fn[A, C : RustHashable, R] TrackedMut::call_mut(Self[A, C], C, (A) -> R, (R) -> UInt128) -> R
+pub fn[A, C] TrackedMut::detach(Self[A, C], ((C, UInt128, UInt128, Bool) -> Unit)?) -> Unit
+pub fn[A, C] TrackedMut::downgrade(Self[A, C]) -> Tracked[A, C]
+pub fn[A, C] TrackedMut::get(Self[A, C]) -> A
+pub fn[A, C] TrackedMut::new(A) -> Self[A, C]
+pub fn[A, C] TrackedMut::reborrow(Self[A, C]) -> Tracked[A, C]
+pub fn[A, C] TrackedMut::reborrow_mut(Self[A, C]) -> Self[A, C]
+pub fn[A, C : RustHashable, R] TrackedMut::validate(Self[A, C], C, (A) -> R, (R) -> UInt128) -> UInt128
+
+pub(all) struct UInt128 {
+  hi : UInt64
+  lo : UInt64
+} derive(@debug.Debug)
+pub impl Eq for UInt128
+pub impl Hash for UInt128
+
+pub(all) enum UnitCall {
+  Empty
+} derive(Eq, Hash)
+pub impl RustHashable for UnitCall
+
+// Type aliases
+pub type Recorder[C] = (C, UInt128, UInt128, Bool) -> Unit
+
+// Traits
+pub trait DataSource {
+  fn fetch(Self, String) -> Int
+  fn size(Self) -> Int
+}
+
+pub trait RustHashable {
+  fn write_rust(Self, Array[Byte]) -> Unit
+  fn rust_hash(Self) -> UInt128
+}
+

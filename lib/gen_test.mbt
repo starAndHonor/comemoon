@@ -101,12 +101,12 @@ test "generated_calc" {
 //| ---------------------------------------------------------------------------
 
 ///|
-struct GWorld {
+struct G1World {
   data : String
 }
 
 ///|
-fn GWorld::query(self : GWorld, selector : String) -> Int {
+fn G1World::query(self : G1World, selector : String) -> Int {
   self.data.length() + selector.length()
 }
 
@@ -123,20 +123,20 @@ fn GTraced::span(self : GTraced) -> Int {
 //| 用户侧 surface(生成器会产出;手写验证)
 
 ///|
-struct GWorldTracked {
-  t : Tracked[GWorld, WorldCall]
+struct G1WorldTracked {
+  t : Tracked[G1World, WorldCall]
 }
 
 ///|
-fn GWorldTracked::new(value : GWorld) -> GWorldTracked {
+fn G1WorldTracked::new(value : G1World) -> G1WorldTracked {
   { t: Tracked::new(value) }
 }
 
 ///|
-fn GWorldTracked::query(self : GWorldTracked, selector : String) -> Int {
+fn G1WorldTracked::query(self : G1WorldTracked, selector : String) -> Int {
   self.t.call(
     WorldCall::Query(selector),
-    fn(w : GWorld) -> Int { w.query(selector) },
+    fn(w : G1World) -> Int { w.query(selector) },
     test_hash_int,
   )
 }
@@ -166,7 +166,7 @@ fn GTracedTracked::span(self : GTracedTracked) -> Int {
 let g_cache : Cache[WorldTracedCall, Int] = Cache::new()
 
 ///|
-fn g_eval(world : GWorldTracked, traced : GTracedTracked) -> Int {
+fn g_eval(world : G1WorldTracked, traced : GTracedTracked) -> Int {
   let wt = world.t
   let tt = traced.t
   memoize2(
@@ -200,7 +200,7 @@ fn g_eval(world : GWorldTracked, traced : GTracedTracked) -> Int {
           W(wc) =>
             wt.validate(
               wc,
-              fn(w : GWorld) -> Int {
+              fn(w : G1World) -> Int {
                 match wc {
                   Query(s) => w.query(s)
                 }
@@ -233,7 +233,7 @@ fn g_eval(world : GWorldTracked, traced : GTracedTracked) -> Int {
 
 ///|
 test "g1_two_tracked_params" {
-  let w : GWorldTracked = GWorldTracked::new({ data: "world" })
+  let w : G1WorldTracked = G1WorldTracked::new({ data: "world" })
   let t : GTracedTracked = GTracedTracked::new({ span: 10 })
   reset_oracle()
   let r1 = g_eval(w, t)

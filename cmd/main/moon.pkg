@@ -3,3 +3,9 @@ pkgtype(kind: "executable")
 import {
   "username/comemoon/lib",
 }
+
+dev_build(
+  rule: "comemo-gen-lib",
+  input: "user_tracked.mbt",
+  output: "comemo_gen.mbt",
+)

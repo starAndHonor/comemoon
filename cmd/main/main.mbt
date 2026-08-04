@@ -1,32 +1,30 @@
 ///|
 /// Demo: calc dependency graph with fine-grained invalidation.
-let eval_cache : @lib.Cache[@lib.FilesCall, Int] = @lib.Cache::new()
+let eval_cache : @lib.Cache[FilesCall, Int] = @lib.Cache::new()
 
 ///|
-fn eval(script : String, files : @lib.FilesTracked) -> Int {
+fn eval(script : String, files : FilesTracked) -> Int {
   let tracked = files.t
   @lib.memoize(
     eval_cache,
     @lib.Input::new(
       fn() { @lib.hash_string(script) },
-      fn(
-        rec : @lib.Recorder[@lib.FilesCall],
-      ) -> @lib.Recorder[@lib.FilesCall]? {
+      fn(rec : @lib.Recorder[FilesCall]) -> @lib.Recorder[FilesCall]? {
         tracked.attach(rec)
       },
-      fn(c : @lib.FilesCall) -> @lib.UInt128 {
+      fn(c : FilesCall) -> @lib.UInt128 {
         match c {
           Read(path) =>
             tracked.validate(
-              @lib.FilesCall::Read(path),
-              fn(f : @lib.Files) -> String { f.read(path) },
+              FilesCall::Read(path),
+              fn(f : Files) -> String { f.read(path) },
               @lib.test_hash_str,
             )
           Write(_, _) => @lib.hash_zero()
         }
       },
-      fn(_c : @lib.FilesCall) -> Unit { () },
-      fn(prev : @lib.Recorder[@lib.FilesCall]?) -> Unit { tracked.detach(prev) },
+      fn(_c : FilesCall) -> Unit { () },
+      fn(prev : @lib.Recorder[FilesCall]?) -> Unit { tracked.detach(prev) },
     ),
     true,
     fn() {
@@ -50,11 +48,11 @@ fn eval(script : String, files : @lib.FilesTracked) -> Int {
 
 ///|
 fn main {
-  let files : @lib.Files = { map: @hashmap.HashMap([]) }
+  let files : Files = { map: @hashmap.HashMap([]) }
   files.write("alpha.calc", "2 + eval beta.calc")
   files.write("beta.calc", "2 + 3")
 
-  let ft : @lib.FilesTracked = @lib.FilesTracked::new(files)
+  let ft : FilesTracked = FilesTracked::new(files)
   let r1 = eval("eval alpha.calc", ft)
   println("eval alpha.calc = " + r1.to_string())
 

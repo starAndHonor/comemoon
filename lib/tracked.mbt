@@ -17,7 +17,7 @@
 
 ///|
 /// reference (the memoize preamble).
-pub struct Tracked[A, C] {
+pub(all) struct Tracked[A, C] {
   /// The tracked value (shared, mutable through `Ref`).
   value : Ref[A]
   /// A recording callback; `None` outside a memoized call.
@@ -189,7 +189,7 @@ pub fn[A, C : RustHashable, R] Tracked::validate(
 
 ///|
 /// ---------------------------------------------------------------------------
-pub struct TrackedMut[A, C] {
+pub(all) struct TrackedMut[A, C] {
   /// The tracked value (shared, mutable through `Ref`).
   value : Ref[A]
   /// A recording callback; `None` outside a memoized call.

@@ -26,3 +26,20 @@ preferred_target = "wasm"
 description = "Incremental computation through constrained memoization (MoonBit port of comemo)."
 
 rule(name: "comemo-gen", command: "python3 gen/gen.py $input $output")
+rule(name: "comemo-gen-lib", command: "python3 gen/gen.py $input $output @lib.")
+
+options(
+  exclude: [
+    "refs",
+    "NovaForge-Output-comemo",
+    "_build",
+    "lib/*_test.mbt",
+    "lib/*_wbtest.mbt",
+    "lib/test_types.mbt",
+    "lib/bench_shared.mbt",
+    "lib/util.mbt",
+    "MIGRATION-*.md",
+    "PORTING-PLAN.md",
+    "GAP-PLAN.md",
+  ],
+)

@@ -11,12 +11,12 @@ pub(all) enum FilesCall {
 pub impl RustHashable for FilesCall with fn write_rust(self, bytes) {
   match self {
     Write(path, text) => {
-      append_u64_le(bytes, 0)
+      write_rust_u64(bytes, 0)
       write_rust_string(bytes, path)
       write_rust_string(bytes, text)
     }
     Read(path) => {
-      append_u64_le(bytes, 1)
+      write_rust_u64(bytes, 1)
       write_rust_string(bytes, path)
     }
   }
@@ -54,11 +54,11 @@ pub(all) enum G4CounterCall {
 pub impl RustHashable for G4CounterCall with fn write_rust(self, bytes) {
   match self {
     Add(n) => {
-      append_u64_le(bytes, 0)
+      write_rust_u64(bytes, 0)
       write_rust_int(bytes, n)
     }
     Count => {
-      append_u64_le(bytes, 1)
+      write_rust_u64(bytes, 1)
     }
   }
 }
@@ -86,7 +86,7 @@ pub fn G4CounterTracked::count(self : G4CounterTracked) -> Int {
 }
 
 ///| Call enum for trait `DataSource` (generated).
-pub(all) enum DataSourceCall {
+pub enum DataSourceCall {
   Fetch(String)
   Size
 } derive(Hash, Eq)
@@ -94,17 +94,17 @@ pub(all) enum DataSourceCall {
 pub impl RustHashable for DataSourceCall with fn write_rust(self, bytes) {
   match self {
     Fetch(key) => {
-      append_u64_le(bytes, 0)
+      write_rust_u64(bytes, 0)
       write_rust_string(bytes, key)
     }
     Size => {
-      append_u64_le(bytes, 1)
+      write_rust_u64(bytes, 1)
     }
   }
 }
 
 ///| Generic surface wrapper for trait `DataSource` (generated).
-pub(all) struct DataSourceTracked[T] {
+pub struct DataSourceTracked[T] {
   t : Tracked[T, DataSourceCall]
 }
 

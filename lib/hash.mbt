@@ -60,7 +60,7 @@ pub fn hash_combine2(a : UInt128, b : UInt128) -> UInt128 {
 }
 
 ///|
-pub trait RustHashable {
+pub(open) trait RustHashable {
   fn write_rust(Self, Array[Byte]) -> Unit
   fn rust_hash(Self) -> UInt128 = _
 }
@@ -144,6 +144,12 @@ pub fn write_rust_int(bytes : Array[Byte], v : Int) -> Unit {
 }
 
 ///|
+/// Rust `Hash for u64` = write_u64 (8 LE bytes).
+pub fn write_rust_u64(bytes : Array[Byte], v : UInt64) -> Unit {
+  append_u64_le(bytes, v)
+}
+
+///|
 /// Rust `Hash for i64` = write_i64 (8 LE bytes).
 pub fn write_rust_i64(bytes : Array[Byte], v : Int64) -> Unit {
   append_i64_le(bytes, v)
@@ -163,7 +169,7 @@ pub fn write_rust_char(bytes : Array[Byte], c : Char) -> Unit {
 
 ///|
 /// Little-endian byte helpers.
-fn append_u64_le(bytes : Array[Byte], v : UInt64) -> Unit {
+pub fn append_u64_le(bytes : Array[Byte], v : UInt64) -> Unit {
   let mut i = 0
   while i < 8 {
     bytes.push(((v >> (i * 8)) & 0xFF).to_byte())
@@ -172,7 +178,7 @@ fn append_u64_le(bytes : Array[Byte], v : UInt64) -> Unit {
 }
 
 ///|
-fn append_i64_le(bytes : Array[Byte], v : Int64) -> Unit {
+pub fn append_i64_le(bytes : Array[Byte], v : Int64) -> Unit {
   let mut i = 0
   while i < 8 {
     bytes.push(((v.to_uint64() >> (i * 8)) & 0xFF).to_byte())
