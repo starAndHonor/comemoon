@@ -37,7 +37,6 @@ options(
     "lib/*_wbtest.mbt",
     "lib/test_types.mbt",
     "lib/bench_shared.mbt",
-    "lib/util.mbt",
     "MIGRATION-*.md",
     "PORTING-PLAN.md",
     "GAP-PLAN.md",
