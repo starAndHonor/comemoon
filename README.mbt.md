@@ -62,18 +62,9 @@ against it directly without running the generator.
 - `bench/` — 7-scenario benchmark vs the Rust reference (`run_bench.sh`)
 - `cmd/main/` — calc dependency graph demo
 
-## Gap status vs Typst usage
-
-See `GAP-PLAN.md`. G1 (multi-param), G2 (trait track), G4 (TrackedMut),
-G5 (5-param memoize), G6 (dyn-World equivalent) are done; G3 (lifetime impls)
-is N/A (internal borrows use `Ref`).
-
 ## Docs
 
 - `AGENTS.md` — repository guidelines
-- `PORTING-PLAN.md` — technical porting decisions (incl. no-proc-macro design)
-- `GAP-PLAN.md` — gap analysis vs latest comemo + Typst usage (G1-G6)
-- `bench/moon-vs-rust.md` — benchmark methodology and results
 
 ## License
 

@@ -4,7 +4,7 @@
 
 **comemoon** is a MoonBit rewrite of [`comemo`](https://github.com/typst/comemo) v0.5.1 — an incremental-computation library based on *constrained memoization*. Goal: match comemo's semantics with better speed and lower memory usage (MoonBit compiles to native/WASM with no GC overhead on the hot path).
 
-The Rust reference implementation lives at `refs/comemo/` (Apache-2.0 + MIT dual licensed) and is the **behavioral contract** for this project. The MoonBit runtime library lives in `lib/` (single package): all core modules ported, 26 tests green (wasm + native), CI green. The Typst gaps G1-G6 are resolved (see `GAP-PLAN.md`): multi-param memoize (up to 5), TrackedMut, trait track, dyn-equivalent generics.
+The Rust reference implementation lives at `refs/comemo/` (Apache-2.0 + MIT dual licensed) and is the **behavioral contract** for this project. The MoonBit runtime library lives in `lib/` (single package): all core modules ported, 26 tests green (wasm + native), CI green. Typst 实际需求已全部覆盖:多参数 memoize(1-6 参数)、TrackedMut、trait track、泛型接口。
 
 **What comemo does:** a memoized function caches its result keyed by (1) a 128-bit hash of all non-tracked arguments and (2) a *call sequence* — every method call made on `Tracked` arguments during the computation, recorded as `(call, return-hash)` pairs. A cache hit is taken only if every recorded call, replayed on the *current* tracked value, produces the same return hash. This gives fine-grained invalidation: editing an unreferenced part of tracked data keeps the cache valid (see `refs/comemo/examples/calc.rs`).
 
@@ -61,7 +61,6 @@ Core components (Rust names — the MoonBit rewrite must provide equivalents):
 | `refs/comemo/tests/tests.rs` | 17 `#[test]` + 2 quickcheck properties — the behavioral test contract (ported to 26 MoonBit tests). |
 | `refs/comemo/examples/` | `basic.rs` (plain memoization), `calc.rs` (tracked dependency graph). |
 | `NovaForge-Output-comemo/` | Typst study notes on comemo internals (5 chapters + appendix) — useful when porting. |
-| `PORTING-PLAN.md` | 技术方案:无宏 codegen 决策、运行时模块设计、生成器架构。 |
 | `lib/` | MoonBit 运行时库(唯一包):核心算法 + 测试 + 生成器输入/输出。 |
 | `gen/gen.py` | `#comemo.track` 代码生成器(dev_build 触发)。 |
 | `bench/` | 基准脚本(run_bench.sh)+ 对比报告。 |
