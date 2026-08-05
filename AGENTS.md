@@ -63,7 +63,6 @@ Core components (Rust names — the MoonBit rewrite must provide equivalents):
 | `NovaForge-Output-comemo/` | Typst study notes on comemo internals (5 chapters + appendix) — useful when porting. |
 | `lib/` | MoonBit 运行时库(唯一包):核心算法 + 测试 + 生成器输入/输出。 |
 | `gen/gen.py` | `#comemo.track` 代码生成器(dev_build 触发)。 |
-| `bench/` | 基准脚本(run_bench.sh)+ 对比报告。 |
 | `cmd/main/` | 可执行示例(calc 依赖图 demo,展示细粒度失效)。 |
 | `refs/comemo/` | Rust 参考实现(行为契约,已 vendored)。 |
 
@@ -77,8 +76,6 @@ moon test --update    # refresh snapshot tests
 moon run cmd/main     # run the executable
 moon fmt              # format (block style, `///|` separators)
 moon info             # regenerate .mbti interface files — run `moon info && moon fmt` after API changes; review .mbti diffs
-moon bench            # benchmark suite (lib/bench_wbtest.mbt), native: --target native
-bash bench/run_bench.sh  # 7-scenario comparison vs Rust (s1-s7)
 moon coverage         # coverage analysis (moon coverage analyze > uncovered.log)
 moon add <pkg>        # add dependency (e.g. moonbitlang/x)
 ```
@@ -115,7 +112,7 @@ CI (GitHub Actions) is configured: install → moon check → moon test (wasm) �
 
 - **Toolchain**: MoonBit `moon` ≥ 0.1.20260724 (installed at `~/.moon/bin/moon`). Note: this version uses `moon.mod` (not `moon.mod.json`) and `.mbt` sources.
 - **Rust reference**: Rust 1.88, edition 2024, workspace comemo + comemo-macros; rustfmt profile `use_small_heuristics="Max"`, max_width 90.
-- **Targets**: `preferred_target = "wasm"` currently; native target useful for the speed/memory goal — verify performance claims against the Rust baseline (add benchmarks under `bench/` when the port lands).
+- **Targets**: `preferred_target = "wasm"` currently; native target useful for the speed/memory goal.
 
 ## Testing & QA
 

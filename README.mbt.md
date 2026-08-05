@@ -89,7 +89,6 @@ editing an unreferenced file keeps the cache valid, so re-evaluation is O(1).
   - `user_tracked.mbt` + `comemo_gen.mbt` — generator input / generated output
 - `gen/gen.py` — `#comemo.track` code generator (structs + traits, wired via
   `rule`/`dev_build`)
-- `bench/` — performance scenarios vs the Rust reference (`run_bench.sh`), run as tests
 - `cmd/main/` — calc dependency-graph demo
 
 ## Testing
@@ -97,8 +96,6 @@ editing an unreferenced file keeps the cache valid, so re-evaluation is O(1).
 - 31 unit tests across the comemo behavioral contract (basic memoization,
   dependency graphs, eviction, trait tracking, mutable replay, determinism),
   green on both wasm and native targets.
-- 7 performance scenarios (`lib/bench_wbtest.mbt`) run alongside the tests,
-  compared against the Rust reference in `bench/run_bench.sh`.
 
 ## Docs
 
