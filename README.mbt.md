@@ -23,7 +23,7 @@ incremental computation possible.
   Typst's `World` trait.
 - **Multi-parameter memoization**: 1–6 tracked parameters (`Input2`..`Input6`
   / `memoize2`..`memoize6`), covering every arity used in Typst.
-- **Validation accelerator**: per-instance call→return-hash cache gives O(1)
+- **Validation accelerator**: per-instance call-to-return-hash cache gives O(1)
   revalidation.
 - **Age-based eviction**: `evict(max_age)` prunes stale entries; recursion
   shares the per-function cache.
