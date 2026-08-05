@@ -24,47 +24,51 @@ fn double(x : Int) -> Int {
 let s3_cache : Cache[FilesCall, Int] = Cache::new()
 
 ///|
+
+///|
+/// Prebuilt input for the calc scenario: builds the closures once per
+/// `s3_eval` call instead of inline at each `memoize` call site.
+fn s3_input(tracked : Tracked[Files, FilesCall]) -> Input[FilesCall] {
+  Input::new(
+    fn() { hash_zero() },
+    fn(rec : Recorder[FilesCall]) -> Recorder[FilesCall]? {
+      tracked.attach(rec)
+    },
+    fn(c : FilesCall) -> UInt128 {
+      match c {
+        Read(path) =>
+          tracked.validate(
+            FilesCall::Read(path),
+            fn(f : Files) -> String { f.read(path) },
+            test_hash_str,
+          )
+        Write(_, _) => hash_zero()
+      }
+    },
+    fn(_c : FilesCall) -> Unit { () },
+    fn(prev : Recorder[FilesCall]?) -> Unit { tracked.detach(prev) },
+  )
+}
+
+///|
 fn s3_eval(script : String, files : FilesTracked) -> Int {
   let tracked = files.t
-  memoize(
-    s3_cache,
-    Input::new(
-      fn() { hash_string(script) },
-      fn(rec : Recorder[FilesCall]) -> Recorder[FilesCall]? {
-        tracked.attach(rec)
-      },
-      fn(c : FilesCall) -> UInt128 {
-        match c {
-          Read(path) =>
-            tracked.validate(
-              FilesCall::Read(path),
-              fn(f : Files) -> String { f.read(path) },
-              test_hash_str,
-            )
-          Write(_, _) => hash_zero()
-        }
-      },
-      fn(_c : FilesCall) -> Unit { () },
-      fn(prev : Recorder[FilesCall]?) -> Unit { tracked.detach(prev) },
-    ),
-    true,
-    fn() {
-      let mut total = 0
-      let parts = script.split("+").to_array()
-      let mut i = 0
-      while i < parts.length() {
-        let p = parts[i].trim().to_owned()
-        if p.has_prefix("eval ") {
-          let path = p[5:].to_owned()
-          total = total + s3_eval(files.read(path), files)
-        } else {
-          total = total + parse_ok(p)
-        }
-        i = i + 1
+  memoize(s3_cache, s3_input(tracked), true, fn() {
+    let mut total = 0
+    let parts = script.split("+").to_array()
+    let mut i = 0
+    while i < parts.length() {
+      let p = parts[i].trim().to_owned()
+      if p.has_prefix("eval ") {
+        let path = p[5:].to_owned()
+        total = total + s3_eval(files.read(path), files)
+      } else {
+        total = total + parse_ok(p)
       }
-      total
-    },
-  )
+      i = i + 1
+    }
+    total
+  })
 }
 
 //| Scenario 4: 1000 same-key contexts validated twice.
@@ -268,6 +272,108 @@ test (b : @bench.T) {
 let s7_cache : Cache[BundleCall, Int] = Cache::new()
 
 ///|
+
+///|
+/// Prebuilt 5-param input: `w`/`i`/`t`/`r`/`s` are stable across rounds in
+/// the benchmark, so the closures are built once per `s7_eval` call
+/// instead of inline at each `memoize5` call site.
+fn s7_input(
+  w : Tracked[G5World, BundleCall],
+  i : Tracked[G5Intro, BundleCall],
+  t : Tracked[G5Traced, BundleCall],
+  r : Tracked[G5Route, BundleCall],
+  s : TrackedMut[G5Sink, BundleCall],
+) -> Input5[
+  BundleCall,
+  BundleCall,
+  BundleCall,
+  BundleCall,
+  BundleCall,
+  BundleCall,
+] {
+  Input5::new(
+    fn() { hash_zero() },
+    fn(
+      rec : Recorder[BundleCall],
+    ) -> (
+      Recorder[BundleCall]?,
+      Recorder[BundleCall]?,
+      Recorder[BundleCall]?,
+      Recorder[BundleCall]?,
+      Recorder[BundleCall]?,
+    ) {
+      (
+        w.attach(rec),
+        i.attach(rec),
+        t.attach(rec),
+        r.attach(rec),
+        s.attach(rec),
+      )
+    },
+    fn(call : BundleCall) -> UInt128 {
+      match call {
+        WorldQuery(kk) =>
+          w.validate(
+            BundleCall::WorldQuery(kk),
+            fn(x : G5World) -> Int { x.query(kk) },
+            hash_int,
+          )
+        IntroQuery(kk) =>
+          i.validate(
+            BundleCall::IntroQuery(kk),
+            fn(x : G5Intro) -> Int { x.query(kk) },
+            hash_int,
+          )
+        TracedPush(kk) =>
+          t.validate(
+            BundleCall::TracedPush(kk),
+            fn(x : G5Traced) -> Int { x.push(kk) },
+            hash_int,
+          )
+        RouteResolve(kk) =>
+          r.validate(
+            BundleCall::RouteResolve(kk),
+            fn(x : G5Route) -> Int { x.resolve(kk) },
+            hash_int,
+          )
+        SinkPush(kk) =>
+          s.validate(
+            BundleCall::SinkPush(kk),
+            fn(x : G5Sink) -> Unit { x.push(kk) },
+            hash_unit_value,
+          )
+      }
+    },
+    fn(call : BundleCall) -> Unit {
+      match call {
+        SinkPush(kk) =>
+          s.call_mut(
+            BundleCall::SinkPush(kk),
+            fn(x : G5Sink) -> Unit { x.push(kk) },
+            hash_unit_value,
+          )
+        _ => ()
+      }
+    },
+    fn(
+      prev : (
+        Recorder[BundleCall]?,
+        Recorder[BundleCall]?,
+        Recorder[BundleCall]?,
+        Recorder[BundleCall]?,
+        Recorder[BundleCall]?,
+      ),
+    ) -> Unit {
+      w.detach(prev.0)
+      i.detach(prev.1)
+      t.detach(prev.2)
+      r.detach(prev.3)
+      s.detach(prev.4)
+    },
+  )
+}
+
+///|
 fn s7_eval(
   w : Tracked[G5World, BundleCall],
   i : Tracked[G5Intro, BundleCall],
@@ -276,117 +382,33 @@ fn s7_eval(
   s : TrackedMut[G5Sink, BundleCall],
   k : Int,
 ) -> Int {
-  memoize5(
-    s7_cache,
-    Input5::new(
-      fn() { hash_int(k) },
-      fn(
-        rec : Recorder[BundleCall],
-      ) -> (
-        Recorder[BundleCall]?,
-        Recorder[BundleCall]?,
-        Recorder[BundleCall]?,
-        Recorder[BundleCall]?,
-        Recorder[BundleCall]?,
-      ) {
-        (
-          w.attach(rec),
-          i.attach(rec),
-          t.attach(rec),
-          r.attach(rec),
-          s.attach(rec),
-        )
-      },
-      fn(call : BundleCall) -> UInt128 {
-        match call {
-          WorldQuery(kk) =>
-            w.validate(
-              BundleCall::WorldQuery(kk),
-              fn(x : G5World) -> Int { x.query(kk) },
-              hash_int,
-            )
-          IntroQuery(kk) =>
-            i.validate(
-              BundleCall::IntroQuery(kk),
-              fn(x : G5Intro) -> Int { x.query(kk) },
-              hash_int,
-            )
-          TracedPush(kk) =>
-            t.validate(
-              BundleCall::TracedPush(kk),
-              fn(x : G5Traced) -> Int { x.push(kk) },
-              hash_int,
-            )
-          RouteResolve(kk) =>
-            r.validate(
-              BundleCall::RouteResolve(kk),
-              fn(x : G5Route) -> Int { x.resolve(kk) },
-              hash_int,
-            )
-          SinkPush(kk) =>
-            s.validate(
-              BundleCall::SinkPush(kk),
-              fn(x : G5Sink) -> Unit { x.push(kk) },
-              hash_unit_value,
-            )
-        }
-      },
-      fn(call : BundleCall) -> Unit {
-        match call {
-          SinkPush(kk) =>
-            s.call_mut(
-              BundleCall::SinkPush(kk),
-              fn(x : G5Sink) -> Unit { x.push(kk) },
-              hash_unit_value,
-            )
-          _ => ()
-        }
-      },
-      fn(
-        prev : (
-          Recorder[BundleCall]?,
-          Recorder[BundleCall]?,
-          Recorder[BundleCall]?,
-          Recorder[BundleCall]?,
-          Recorder[BundleCall]?,
-        ),
-      ) -> Unit {
-        w.detach(prev.0)
-        i.detach(prev.1)
-        t.detach(prev.2)
-        r.detach(prev.3)
-        s.detach(prev.4)
-      },
-    ),
-    true,
-    fn() {
-      s.call_mut(
-        BundleCall::SinkPush(k),
-        fn(x : G5Sink) -> Unit { x.push(k) },
-        hash_unit_value,
-      )
-      w.call(
-        BundleCall::WorldQuery(k),
-        fn(x : G5World) -> Int { x.query(k) },
-        hash_int,
-      ) +
-      i.call(
-        BundleCall::IntroQuery(k),
-        fn(x : G5Intro) -> Int { x.query(k) },
-        hash_int,
-      ) +
-      t.call(
-        BundleCall::TracedPush(k),
-        fn(x : G5Traced) -> Int { x.push(k) },
-        hash_int,
-      ) +
-      r.call(
-        BundleCall::RouteResolve(k),
-        fn(x : G5Route) -> Int { x.resolve(k) },
-        hash_int,
-      )
-    },
-  )
+  memoize5(s7_cache, s7_input(w, i, t, r, s), true, fn() {
+    s.call_mut(
+      BundleCall::SinkPush(k),
+      fn(x : G5Sink) -> Unit { x.push(k) },
+      hash_unit_value,
+    )
+    w.call(
+      BundleCall::WorldQuery(k),
+      fn(x : G5World) -> Int { x.query(k) },
+      hash_int,
+    ) +
+    i.call(
+      BundleCall::IntroQuery(k),
+      fn(x : G5Intro) -> Int { x.query(k) },
+      hash_int,
+    ) +
+    t.call(
+      BundleCall::TracedPush(k),
+      fn(x : G5Traced) -> Int { x.push(k) },
+      hash_int,
+    ) +
+    r.call(
+      BundleCall::RouteResolve(k),
+      fn(x : G5Route) -> Int { x.resolve(k) },
+      hash_int,
+    )
+  })
 }
 
 ///|

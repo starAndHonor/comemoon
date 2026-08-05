@@ -76,31 +76,12 @@ impl RustHashable with fn rust_hash(self) -> UInt128 {
 ///|
 /// Concrete hashes for core types (cannot impl RustHashable).
 pub fn hash_int(v : Int) -> UInt128 {
-  let bytes : Array[Byte] = []
-  append_i64_le(bytes, v.to_int64())
-  hash_bytes(bytes)
+  sum128_i64_le(v.to_int64())
 }
 
 ///|
 pub fn hash_string(s : String) -> UInt128 {
-  let bytes : Array[Byte] = []
-  //| UTF-8 bytes + 0xff terminator.
-  let mut i = 0
-  for ch in s.iter() {
-    let cp = ch.to_int()
-    if cp <= 0x7F {
-      bytes.push(cp.to_byte())
-    } else if cp <= 0x7FF {
-      bytes.push((0xC0 | ((cp >> 6) & 0x1F)).to_byte())
-      bytes.push((0x80 | (cp & 0x3F)).to_byte())
-    } else {
-      bytes.push((0xE0 | ((cp >> 12) & 0x0F)).to_byte())
-      bytes.push((0x80 | ((cp >> 6) & 0x3F)).to_byte())
-      bytes.push((0x80 | (cp & 0x3F)).to_byte())
-    }
-  }
-  bytes.push((255).to_byte())
-  hash_bytes(bytes)
+  sum128_codepoints(s.iter())
 }
 
 ///|

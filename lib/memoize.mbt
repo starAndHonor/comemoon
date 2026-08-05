@@ -130,8 +130,7 @@ pub fn[C : RustHashable, O] memoize_pure(
   }
   //| Inline lookup (avoids per-call closure allocations of the generic
   //| Input/memoize path, which cost ~30ns on the hot path).
-  let zero : UInt128 = hash_zero()
-  match cache.lookup(key, fn(_c : C) -> UInt128 { zero }) {
+  match cache.lookup_pure(key) {
     Some(entry) => {
       register_hit()
       return entry.output

@@ -1,3 +1,21 @@
+//
+
+///|
+/// Pure lookup: no oracle (no tracked calls). Mirrors `lookup` but skips
+/// the oracle closure allocation.
+fn[C, O] Cache::lookup_pure(
+  self : Cache[C, O],
+  key : UInt128,
+) -> CacheEntry[C, O]? {
+  match self.tree.get_pure(key) {
+    Some(entry) => {
+      entry.age.val = 0
+      Some(entry)
+    }
+    None => None
+  }
+}
+
 ///|
 /// The global list of eviction functions.
 let evictors : Ref[Array[(Int) -> Unit]] = { val: Array::new() }

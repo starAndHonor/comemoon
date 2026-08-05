@@ -107,6 +107,30 @@ pub fn[C, T] CallTree::get(
 
 ///|
 /// Inserts a key and a call sequence and its associated value into the tree.
+
+///|
+/// Retrieves the output value for a pure-argument key (no tracked calls):
+/// the tree path is a single leaf under `start[key]`, so no oracle is
+/// needed. Skips the oracle closure entirely (hot path: memoize_pure).
+pub fn[C, T] CallTree::get_pure(self : CallTree[C, T], key : UInt128) -> T? {
+  match self.start.get(key) {
+    Some(nid) =>
+      if nid < 0 {
+        //| Direct leaf: pure fn, no inner nodes.
+        let id = -nid - 1
+        match self.leaves.data[id] {
+          Some(node) => Some(node.value)
+          None => None
+        }
+      } else {
+        //| Has inner nodes (unexpected for pure): fall back to generic get.
+        self.get(key, fn(_c : C) -> UInt128 { hash_zero() })
+      }
+    None => None
+  }
+}
+
+///|
 pub fn[C : RustHashable, T] CallTree::insert(
   self : CallTree[C, T],
   key : UInt128,

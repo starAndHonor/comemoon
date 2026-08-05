@@ -26,6 +26,7 @@ preferred_target = "wasm"
 description = "Incremental computation through constrained memoization (MoonBit port of comemo)."
 
 rule(name: "comemo-gen", command: "python3 gen/gen.py $input $output")
+
 rule(name: "comemo-gen-lib", command: "python3 gen/gen.py $input $output @lib.")
 
 options(

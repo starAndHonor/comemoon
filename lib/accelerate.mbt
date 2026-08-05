@@ -29,10 +29,11 @@ let next_id : Ref[Int] = { val: 0 }
 
 ///|
 /// Generate a new accelerator ID for a fresh `Tracked` instance.
+/// The per-instance map is created lazily on first `accelerator_insert`
+/// (hot path: `Tracked::new` / `track_mut` are allocation-free).
 pub fn accelerator_id() -> Int {
   let id = next_id.val
   next_id.val = next_id.val + 1
-  accelerators.val.push(@hashmap.HashMap([]))
   id
 }
 
