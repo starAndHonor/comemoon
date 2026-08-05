@@ -560,3 +560,269 @@ test "g6_dyn_world_polymorphism" {
     panic()
   }
 }
+
+//| ---------------------------------------------------------------------------
+//| G7: 6 参数 memoize(eval_closure 模式:5 Tracked + 1 TrackedMut)
+//| ---------------------------------------------------------------------------
+
+///|
+pub(all) enum SixCall {
+  Ctx(String)
+  Route(String)
+  Traced(String)
+  Intro(String)
+  World(String)
+  SinkAdd(String)
+} derive(Hash, Eq)
+
+///|
+pub impl RustHashable for SixCall with fn write_rust(self, bytes) {
+  match self {
+    Ctx(k) => {
+      write_rust_u64(bytes, 0)
+      write_rust_string(bytes, k)
+    }
+    Route(k) => {
+      write_rust_u64(bytes, 1)
+      write_rust_string(bytes, k)
+    }
+    Traced(k) => {
+      write_rust_u64(bytes, 2)
+      write_rust_string(bytes, k)
+    }
+    Intro(k) => {
+      write_rust_u64(bytes, 3)
+      write_rust_string(bytes, k)
+    }
+    World(k) => {
+      write_rust_u64(bytes, 4)
+      write_rust_string(bytes, k)
+    }
+    SinkAdd(k) => {
+      write_rust_u64(bytes, 5)
+      write_rust_string(bytes, k)
+    }
+  }
+}
+
+///|
+struct G7Ctx {
+  v : Int
+}
+
+///|
+struct G7Route {
+  v : Int
+}
+
+///|
+struct G7Traced {
+  v : Int
+}
+
+///|
+struct G7Intro {
+  v : Int
+}
+
+///|
+struct G7World {
+  v : Int
+}
+
+///|
+struct G7Sink {
+  mut acc : Int
+}
+
+///|
+fn G7Ctx::get(self : G7Ctx, k : String) -> Int {
+  self.v + k.length()
+}
+
+///|
+fn G7Route::get(self : G7Route, k : String) -> Int {
+  self.v + k.length()
+}
+
+///|
+fn G7Traced::get(self : G7Traced, k : String) -> Int {
+  self.v + k.length()
+}
+
+///|
+fn G7Intro::get(self : G7Intro, k : String) -> Int {
+  self.v + k.length()
+}
+
+///|
+fn G7World::get(self : G7World, k : String) -> Int {
+  self.v + k.length()
+}
+
+///|
+fn G7Sink::add(self : G7Sink, k : String) -> Unit {
+  self.acc = self.acc + k.length()
+}
+
+///|
+let g7_cache : Cache[SixCall, Int] = Cache::new()
+
+///|
+fn g7_eval(
+  ctx : Tracked[G7Ctx, SixCall],
+  route : Tracked[G7Route, SixCall],
+  traced : Tracked[G7Traced, SixCall],
+  intro : Tracked[G7Intro, SixCall],
+  world : Tracked[G7World, SixCall],
+  sink : TrackedMut[G7Sink, SixCall],
+  k : String,
+) -> Int {
+  memoize6(
+    g7_cache,
+    Input6::new(
+      fn() { hash_string(k) },
+      fn(
+        rec : Recorder[SixCall],
+      ) -> (
+        Recorder[SixCall]?,
+        Recorder[SixCall]?,
+        Recorder[SixCall]?,
+        Recorder[SixCall]?,
+        Recorder[SixCall]?,
+        Recorder[SixCall]?,
+      ) {
+        (
+          ctx.attach(rec),
+          route.attach(rec),
+          traced.attach(rec),
+          intro.attach(rec),
+          world.attach(rec),
+          sink.attach(rec),
+        )
+      },
+      fn(call : SixCall) -> UInt64 {
+        match call {
+          Ctx(kk) =>
+            ctx.validate(
+              SixCall::Ctx(kk),
+              fn(x : G7Ctx) -> Int { x.get(kk) },
+              hash_int,
+            )
+          Route(kk) =>
+            route.validate(
+              SixCall::Route(kk),
+              fn(x : G7Route) -> Int { x.get(kk) },
+              hash_int,
+            )
+          Traced(kk) =>
+            traced.validate(
+              SixCall::Traced(kk),
+              fn(x : G7Traced) -> Int { x.get(kk) },
+              hash_int,
+            )
+          Intro(kk) =>
+            intro.validate(
+              SixCall::Intro(kk),
+              fn(x : G7Intro) -> Int { x.get(kk) },
+              hash_int,
+            )
+          World(kk) =>
+            world.validate(
+              SixCall::World(kk),
+              fn(x : G7World) -> Int { x.get(kk) },
+              hash_int,
+            )
+          SinkAdd(kk) =>
+            sink.validate(
+              SixCall::SinkAdd(kk),
+              fn(x : G7Sink) -> Unit { x.add(kk) },
+              hash_unit_value,
+            )
+        }
+      },
+      fn(call : SixCall) -> Unit {
+        match call {
+          SinkAdd(kk) =>
+            sink.call_mut(
+              SixCall::SinkAdd(kk),
+              fn(x : G7Sink) -> Unit { x.add(kk) },
+              hash_unit_value,
+            )
+          _ => ()
+        }
+      },
+      fn(
+        prev : (
+          Recorder[SixCall]?,
+          Recorder[SixCall]?,
+          Recorder[SixCall]?,
+          Recorder[SixCall]?,
+          Recorder[SixCall]?,
+          Recorder[SixCall]?,
+        ),
+      ) -> Unit {
+        ctx.detach(prev.0)
+        route.detach(prev.1)
+        traced.detach(prev.2)
+        intro.detach(prev.3)
+        world.detach(prev.4)
+        sink.detach(prev.5)
+      },
+    ),
+    true,
+    fn() {
+      sink.call_mut(
+        SixCall::SinkAdd(k),
+        fn(x : G7Sink) -> Unit { x.add(k) },
+        hash_unit_value,
+      )
+      ctx.call(SixCall::Ctx(k), fn(x : G7Ctx) -> Int { x.get(k) }, hash_int) +
+      route.call(
+        SixCall::Route(k),
+        fn(x : G7Route) -> Int { x.get(k) },
+        hash_int,
+      ) +
+      traced.call(
+        SixCall::Traced(k),
+        fn(x : G7Traced) -> Int { x.get(k) },
+        hash_int,
+      ) +
+      intro.call(
+        SixCall::Intro(k),
+        fn(x : G7Intro) -> Int { x.get(k) },
+        hash_int,
+      ) +
+      world.call(
+        SixCall::World(k),
+        fn(x : G7World) -> Int { x.get(k) },
+        hash_int,
+      )
+    },
+  )
+}
+
+///|
+test "g7_memoize6_eval_closure" {
+  let ctx : Tracked[G7Ctx, SixCall] = Tracked::new({ v: 1 })
+  let route : Tracked[G7Route, SixCall] = Tracked::new({ v: 2 })
+  let traced : Tracked[G7Traced, SixCall] = Tracked::new({ v: 3 })
+  let intro : Tracked[G7Intro, SixCall] = Tracked::new({ v: 4 })
+  let world : Tracked[G7World, SixCall] = Tracked::new({ v: 5 })
+  let sink : TrackedMut[G7Sink, SixCall] = TrackedMut::new({ acc: 0 })
+  //| miss:每个 get = v + len("ab")=v+2 → 3+4+5+6+7=25;sink acc = 2
+  let r1 = g7_eval(ctx, route, traced, intro, world, sink, "ab")
+  if r1 != 25 || sink.get().acc != 2 {
+    panic()
+  }
+  //| hit:mutable 重放 SinkAdd → acc = 4,output 缓存 25
+  let r2 = g7_eval(ctx, route, traced, intro, world, sink, "ab")
+  if r2 != 25 || sink.get().acc != 4 {
+    panic()
+  }
+  //| 改参数:miss
+  let r3 = g7_eval(ctx, route, traced, intro, world, sink, "abc")
+  if r3 != 30 || sink.get().acc != 7 {
+    panic()
+  }
+}

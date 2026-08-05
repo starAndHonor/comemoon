@@ -538,3 +538,112 @@ pub fn[C : RustHashable, A, O] memoize_tracked_mut(
   register_miss()
   output
 }
+
+///| ---------------------------------------------------------------------------
+
+///| An input with 6 tracked parameters (Typst's `eval_closure` pattern).
+
+///|
+/// ---------------------------------------------------------------------------
+pub struct Input6[C1, C2, C3, C4, C5, C6, CM] {
+  key : () -> UInt64
+  attach : (Recorder[CM]) -> (
+    Recorder[C1]?,
+    Recorder[C2]?,
+    Recorder[C3]?,
+    Recorder[C4]?,
+    Recorder[C5]?,
+    Recorder[C6]?,
+  )
+  oracle : (CM) -> UInt64
+  replay_mut : (CM) -> Unit
+  detach : (
+    (
+      Recorder[C1]?,
+      Recorder[C2]?,
+      Recorder[C3]?,
+      Recorder[C4]?,
+      Recorder[C5]?,
+      Recorder[C6]?,
+    ),
+  ) -> Unit
+}
+
+///|
+pub fn[C1, C2, C3, C4, C5, C6, CM] Input6::new(
+  key : () -> UInt64,
+  attach : (Recorder[CM]) -> (
+    Recorder[C1]?,
+    Recorder[C2]?,
+    Recorder[C3]?,
+    Recorder[C4]?,
+    Recorder[C5]?,
+    Recorder[C6]?,
+  ),
+  oracle : (CM) -> UInt64,
+  replay_mut : (CM) -> Unit,
+  detach : (
+    (
+      Recorder[C1]?,
+      Recorder[C2]?,
+      Recorder[C3]?,
+      Recorder[C4]?,
+      Recorder[C5]?,
+      Recorder[C6]?,
+    ),
+  ) -> Unit,
+) -> Input6[C1, C2, C3, C4, C5, C6, CM] {
+  { key, attach, oracle, replay_mut, detach }
+}
+
+///|
+/// Memoize with 6 tracked parameters.
+pub fn[
+  C1 : RustHashable,
+  C2 : RustHashable,
+  C3 : RustHashable,
+  C4 : RustHashable,
+  C5 : RustHashable,
+  C6 : RustHashable,
+  CM : RustHashable,
+  O,
+] memoize6(
+  cache : Cache[CM, O],
+  input : Input6[C1, C2, C3, C4, C5, C6, CM],
+  enabled : Bool,
+  func : () -> O,
+) -> O {
+  if !enabled {
+    register_miss()
+    return func()
+  }
+  let key = (input.key)()
+  let lookup_res = cache.lookup(key, input.oracle)
+  match lookup_res {
+    Some(entry) => {
+      for call in entry.mutable {
+        (input.replay_mut)(call)
+      }
+      register_hit()
+      return entry.output
+    }
+    None => ()
+  }
+  let constraint = Constraint::new()
+  let prev = (input.attach)(fn(
+    call : CM,
+    call_hash : UInt64,
+    ret : UInt64,
+    mutable : Bool,
+  ) -> Unit {
+    constraint.record(call, call_hash, ret, mutable)
+  })
+  let output = func()
+  (input.detach)(prev)
+  match cache.insert(key, constraint, output) {
+    Ok(_) => ()
+    Err(_) => ()
+  }
+  register_miss()
+  output
+}
