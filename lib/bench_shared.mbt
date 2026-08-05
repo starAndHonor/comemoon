@@ -128,7 +128,7 @@ pub fn g5_eval(
           s.attach(rec),
         )
       },
-      fn(call : BundleCall) -> UInt128 {
+      fn(call : BundleCall) -> UInt64 {
         match call {
           WorldQuery(kk) =>
             w.validate(

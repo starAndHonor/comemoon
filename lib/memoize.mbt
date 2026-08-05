@@ -20,9 +20,9 @@
 ///|
 ///   (mirrors `Input::call_mut`, used on cache hit).
 pub struct Input[C] {
-  key : () -> UInt128
+  key : () -> UInt64
   attach : (Recorder[C]) -> Recorder[C]?
-  oracle : (C) -> UInt128
+  oracle : (C) -> UInt64
   replay_mut : (C) -> Unit
   detach : (Recorder[C]?) -> Unit
 }
@@ -34,9 +34,9 @@ pub struct Input[C] {
 ///|
 /// literal from outside the defining package).
 pub fn[C] Input::new(
-  key : () -> UInt128,
+  key : () -> UInt64,
   attach : (Recorder[C]) -> Recorder[C]?,
-  oracle : (C) -> UInt128,
+  oracle : (C) -> UInt64,
   replay_mut : (C) -> Unit,
   detach : (Recorder[C]?) -> Unit,
 ) -> Input[C] {
@@ -85,8 +85,8 @@ pub fn[C : RustHashable, O] memoize(
   let constraint = Constraint::new()
   let prev = (input.attach)(fn(
     call : C,
-    call_hash : UInt128,
-    ret : UInt128,
+    call_hash : UInt64,
+    ret : UInt64,
     mutable : Bool,
   ) -> Unit {
     constraint.record(call, call_hash, ret, mutable)
@@ -120,7 +120,7 @@ pub fn[C : RustHashable, O] memoize(
 /// Call type is unused (no tracking); key is computed by the caller.
 pub fn[C : RustHashable, O] memoize_pure(
   cache : Cache[C, O],
-  key : UInt128,
+  key : UInt64,
   enabled : Bool,
   func : () -> O,
 ) -> O {
@@ -167,18 +167,18 @@ pub fn[C : RustHashable, O] memoize_pure(
 ///|
 /// call.
 pub struct Input2[C1, C2, CM] {
-  key : () -> UInt128
+  key : () -> UInt64
   attach : (Recorder[CM]) -> (Recorder[C1]?, Recorder[C2]?)
-  oracle : (CM) -> UInt128
+  oracle : (CM) -> UInt64
   replay_mut : (CM) -> Unit
   detach : ((Recorder[C1]?, Recorder[C2]?)) -> Unit
 }
 
 ///|
 pub fn[C1, C2, CM] Input2::new(
-  key : () -> UInt128,
+  key : () -> UInt64,
   attach : (Recorder[CM]) -> (Recorder[C1]?, Recorder[C2]?),
-  oracle : (CM) -> UInt128,
+  oracle : (CM) -> UInt64,
   replay_mut : (CM) -> Unit,
   detach : ((Recorder[C1]?, Recorder[C2]?)) -> Unit,
 ) -> Input2[C1, C2, CM] {
@@ -212,8 +212,8 @@ pub fn[C1 : RustHashable, C2 : RustHashable, CM : RustHashable, O] memoize2(
   let constraint = Constraint::new()
   let prev = (input.attach)(fn(
     call : CM,
-    call_hash : UInt128,
-    ret : UInt128,
+    call_hash : UInt64,
+    ret : UInt64,
     mutable : Bool,
   ) -> Unit {
     constraint.record(call, call_hash, ret, mutable)
@@ -239,18 +239,18 @@ pub fn[C1 : RustHashable, C2 : RustHashable, CM : RustHashable, O] memoize2(
 ///|
 /// ---------------------------------------------------------------------------
 pub struct Input3[C1, C2, C3, CM] {
-  key : () -> UInt128
+  key : () -> UInt64
   attach : (Recorder[CM]) -> (Recorder[C1]?, Recorder[C2]?, Recorder[C3]?)
-  oracle : (CM) -> UInt128
+  oracle : (CM) -> UInt64
   replay_mut : (CM) -> Unit
   detach : ((Recorder[C1]?, Recorder[C2]?, Recorder[C3]?)) -> Unit
 }
 
 ///|
 pub fn[C1, C2, C3, CM] Input3::new(
-  key : () -> UInt128,
+  key : () -> UInt64,
   attach : (Recorder[CM]) -> (Recorder[C1]?, Recorder[C2]?, Recorder[C3]?),
-  oracle : (CM) -> UInt128,
+  oracle : (CM) -> UInt64,
   replay_mut : (CM) -> Unit,
   detach : ((Recorder[C1]?, Recorder[C2]?, Recorder[C3]?)) -> Unit,
 ) -> Input3[C1, C2, C3, CM] {
@@ -290,8 +290,8 @@ pub fn[
   let constraint = Constraint::new()
   let prev = (input.attach)(fn(
     call : CM,
-    call_hash : UInt128,
-    ret : UInt128,
+    call_hash : UInt64,
+    ret : UInt64,
     mutable : Bool,
   ) -> Unit {
     constraint.record(call, call_hash, ret, mutable)
@@ -317,28 +317,28 @@ pub fn[
 ///|
 /// ---------------------------------------------------------------------------
 pub struct Input4[C1, C2, C3, C4, CM] {
-  key : () -> UInt128
+  key : () -> UInt64
   attach : (Recorder[CM]) -> (
     Recorder[C1]?,
     Recorder[C2]?,
     Recorder[C3]?,
     Recorder[C4]?,
   )
-  oracle : (CM) -> UInt128
+  oracle : (CM) -> UInt64
   replay_mut : (CM) -> Unit
   detach : ((Recorder[C1]?, Recorder[C2]?, Recorder[C3]?, Recorder[C4]?)) -> Unit
 }
 
 ///|
 pub fn[C1, C2, C3, C4, CM] Input4::new(
-  key : () -> UInt128,
+  key : () -> UInt64,
   attach : (Recorder[CM]) -> (
     Recorder[C1]?,
     Recorder[C2]?,
     Recorder[C3]?,
     Recorder[C4]?,
   ),
-  oracle : (CM) -> UInt128,
+  oracle : (CM) -> UInt64,
   replay_mut : (CM) -> Unit,
   detach : ((Recorder[C1]?, Recorder[C2]?, Recorder[C3]?, Recorder[C4]?)) -> Unit,
 ) -> Input4[C1, C2, C3, C4, CM] {
@@ -379,8 +379,8 @@ pub fn[
   let constraint = Constraint::new()
   let prev = (input.attach)(fn(
     call : CM,
-    call_hash : UInt128,
-    ret : UInt128,
+    call_hash : UInt64,
+    ret : UInt64,
     mutable : Bool,
   ) -> Unit {
     constraint.record(call, call_hash, ret, mutable)
@@ -406,7 +406,7 @@ pub fn[
 ///|
 /// ---------------------------------------------------------------------------
 pub struct Input5[C1, C2, C3, C4, C5, CM] {
-  key : () -> UInt128
+  key : () -> UInt64
   attach : (Recorder[CM]) -> (
     Recorder[C1]?,
     Recorder[C2]?,
@@ -414,7 +414,7 @@ pub struct Input5[C1, C2, C3, C4, C5, CM] {
     Recorder[C4]?,
     Recorder[C5]?,
   )
-  oracle : (CM) -> UInt128
+  oracle : (CM) -> UInt64
   replay_mut : (CM) -> Unit
   detach : (
     (Recorder[C1]?, Recorder[C2]?, Recorder[C3]?, Recorder[C4]?, Recorder[C5]?),
@@ -423,7 +423,7 @@ pub struct Input5[C1, C2, C3, C4, C5, CM] {
 
 ///|
 pub fn[C1, C2, C3, C4, C5, CM] Input5::new(
-  key : () -> UInt128,
+  key : () -> UInt64,
   attach : (Recorder[CM]) -> (
     Recorder[C1]?,
     Recorder[C2]?,
@@ -431,7 +431,7 @@ pub fn[C1, C2, C3, C4, C5, CM] Input5::new(
     Recorder[C4]?,
     Recorder[C5]?,
   ),
-  oracle : (CM) -> UInt128,
+  oracle : (CM) -> UInt64,
   replay_mut : (CM) -> Unit,
   detach : (
     (Recorder[C1]?, Recorder[C2]?, Recorder[C3]?, Recorder[C4]?, Recorder[C5]?),
@@ -475,8 +475,8 @@ pub fn[
   let constraint = Constraint::new()
   let prev = (input.attach)(fn(
     call : CM,
-    call_hash : UInt128,
-    ret : UInt128,
+    call_hash : UInt64,
+    ret : UInt64,
     mutable : Bool,
   ) -> Unit {
     constraint.record(call, call_hash, ret, mutable)

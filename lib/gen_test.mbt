@@ -11,7 +11,7 @@ let gen_eval_cache : Cache[FilesCall, Int] = Cache::new()
 //| what `Files::read` returns); the Phase 4 generator emits this wiring.
 
 ///|
-fn gen_oracle(t : Tracked[Files, FilesCall], c : FilesCall) -> UInt128 {
+fn gen_oracle(t : Tracked[Files, FilesCall], c : FilesCall) -> UInt64 {
   match c {
     Read(path) =>
       t.validate(
@@ -33,7 +33,7 @@ fn gen_evaluate(script : String, files : FilesTracked) -> Int {
       fn(rec : Recorder[FilesCall]) -> Recorder[FilesCall]? {
         tracked.attach(rec)
       },
-      fn(c : FilesCall) -> UInt128 { gen_oracle(tracked, c) },
+      fn(c : FilesCall) -> UInt64 { gen_oracle(tracked, c) },
       fn(_c : FilesCall) -> Unit { () },
       fn(prev : Recorder[FilesCall]?) -> Unit { tracked.detach(prev) },
     ),
@@ -179,23 +179,23 @@ fn g_eval(world : G1WorldTracked, traced : GTracedTracked) -> Int {
       ) -> (Recorder[WorldCall]?, Recorder[TracedCall]?) {
         let p1 = wt.attach(fn(
           c : WorldCall,
-          h : UInt128,
-          ret : UInt128,
+          h : UInt64,
+          ret : UInt64,
           m : Bool,
         ) -> Unit {
           rec(WorldTracedCall::W(c), h, ret, m)
         })
         let p2 = tt.attach(fn(
           c : TracedCall,
-          h : UInt128,
-          ret : UInt128,
+          h : UInt64,
+          ret : UInt64,
           m : Bool,
         ) -> Unit {
           rec(WorldTracedCall::T(c), h, ret, m)
         })
         (p1, p2)
       },
-      fn(c : WorldTracedCall) -> UInt128 {
+      fn(c : WorldTracedCall) -> UInt64 {
         match c {
           W(wc) =>
             wt.validate(

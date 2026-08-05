@@ -292,7 +292,7 @@ fn[T : GWorld] g2_eval_internal(
     Input::new(
       fn() { hash_string(script) },
       fn(rec : Recorder[GWorldCall]) -> Recorder[GWorldCall]? { wt.attach(rec) },
-      fn(c : GWorldCall) -> UInt128 {
+      fn(c : GWorldCall) -> UInt64 {
         match c {
           Query(s) =>
             wt.validate(
@@ -357,7 +357,7 @@ fn g4_eval(c : TrackedMut[G4Counter, G4CounterCall], n : Int) -> Int {
       fn(rec : Recorder[G4CounterCall]) -> Recorder[G4CounterCall]? {
         st.attach(rec)
       },
-      fn(call : G4CounterCall) -> UInt128 {
+      fn(call : G4CounterCall) -> UInt64 {
         match call {
           Add(nn) =>
             st.validate(
@@ -509,7 +509,7 @@ fn[W : GWorld] g6_compile(world : GWorldTracked[W], script : String) -> Int {
     Input::new(
       fn() { hash_string(script) },
       fn(rec : Recorder[GWorldCall]) -> Recorder[GWorldCall]? { st.attach(rec) },
-      fn(call : GWorldCall) -> UInt128 {
+      fn(call : GWorldCall) -> UInt64 {
         match call {
           Query(sel) =>
             st.validate(

@@ -240,7 +240,7 @@ struct CtxTracked {
 fn CtxTracked::location(self : CtxTracked) -> Int? {
   self.t.call(CtxCall::Location, fn(c : Ctx) -> Int? { c.location }, fn(
     v : Int?,
-  ) -> UInt128 {
+  ) -> UInt64 {
     test_hash_opt(v, test_hash_int)
   })
 }
@@ -265,13 +265,13 @@ fn contextual(ctx : CtxTracked) -> String {
     Input::new(
       fn() { hash_unit() },
       fn(rec : Recorder[CtxCall]) -> Recorder[CtxCall]? { tracked.attach(rec) },
-      fn(c : CtxCall) -> UInt128 {
+      fn(c : CtxCall) -> UInt64 {
         match c {
           Location =>
             tracked.validate(
               CtxCall::Location,
               fn(x : Ctx) -> Int? { x.location },
-              fn(v : Int?) -> UInt128 { test_hash_opt(v, test_hash_int) },
+              fn(v : Int?) -> UInt64 { test_hash_opt(v, test_hash_int) },
             )
           Styles =>
             tracked.validate(
@@ -364,7 +364,7 @@ struct OOTracked {
 fn OOTracked::location(self : OOTracked) -> Int? {
   self.t.call(OOCall::OOLocation, fn(x : OOContext) -> Int? { x.location }, fn(
     v : Int?,
-  ) -> UInt128 {
+  ) -> UInt64 {
     test_hash_opt(v, test_hash_int)
   })
 }
@@ -389,13 +389,13 @@ fn oo_contextual(ctx : OOTracked) -> String {
     Input::new(
       fn() { hash_unit() },
       fn(rec : Recorder[OOCall]) -> Recorder[OOCall]? { tracked.attach(rec) },
-      fn(c : OOCall) -> UInt128 {
+      fn(c : OOCall) -> UInt64 {
         match c {
           OOLocation =>
             tracked.validate(
               OOCall::OOLocation,
               fn(x : OOContext) -> Int? { x.location },
-              fn(v : Int?) -> UInt128 { test_hash_opt(v, test_hash_int) },
+              fn(v : Int?) -> UInt64 { test_hash_opt(v, test_hash_int) },
             )
           OOStyles =>
             tracked.validate(
@@ -475,17 +475,17 @@ test "deterministic_out_of_order" {
 ///|
 test "call_sequence_dedup_same_ret" {
   let cs = CallSequence::new()
-  if !cs.insert(IntCall::I(42), UInt128::{ hi: 0, lo: (100).to_uint64() }) {
+  if !cs.insert(IntCall::I(42), (100).to_uint64()) {
     panic()
   } // first insert
-  if cs.insert(IntCall::I(42), UInt128::{ hi: 0, lo: (100).to_uint64() }) {
+  if cs.insert(IntCall::I(42), (100).to_uint64()) {
     panic()
   } // dedup, same ret → false
   //| next() yields the deduplicated pair once.
   match cs.next() {
     Some((call, ret)) =>
       match call {
-        I(v) => if v != 42 || ret != UInt128::{ hi: 0, lo: 100 } { panic() }
+        I(v) => if v != 42 || ret != 100 { panic() }
       }
     None => panic()
   }
@@ -506,16 +506,16 @@ test "call_tree_missing_call" {
   let tree = CallTree::new()
   //| Insert a path with calls [a, b].
   let cs1 = CallSequence::new()
-  ignore(cs1.insert(StrCall::S("a"), UInt128::{ hi: 0, lo: (10).to_uint64() }))
-  ignore(cs1.insert(StrCall::S("b"), UInt128::{ hi: 0, lo: (20).to_uint64() }))
-  match tree.insert(UInt128::{ hi: 0, lo: 0 }, cs1, "v1") {
+  ignore(cs1.insert(StrCall::S("a"), (10).to_uint64()))
+  ignore(cs1.insert(StrCall::S("b"), (20).to_uint64()))
+  match tree.insert(0, cs1, "v1") {
     Ok(_) => ()
     Err(_) => panic()
   }
   //| Now insert a sequence with only [a] — the tree path needs b.
   let cs2 = CallSequence::new()
-  ignore(cs2.insert(StrCall::S("a"), UInt128::{ hi: 0, lo: (10).to_uint64() }))
-  match tree.insert(UInt128::{ hi: 0, lo: 0 }, cs2, "v2") {
+  ignore(cs2.insert(StrCall::S("a"), (10).to_uint64()))
+  match tree.insert(0, cs2, "v2") {
     Err(MissingCall) => ()
     Ok(_) => panic()
     Err(AlreadyExists) => panic()
@@ -528,15 +528,15 @@ test "call_tree_missing_call" {
 test "call_tree_already_exists" {
   let tree = CallTree::new()
   let cs1 = CallSequence::new()
-  ignore(cs1.insert(StrCall::S("a"), UInt128::{ hi: 0, lo: (10).to_uint64() }))
-  match tree.insert(UInt128::{ hi: 0, lo: 0 }, cs1, "v1") {
+  ignore(cs1.insert(StrCall::S("a"), (10).to_uint64()))
+  match tree.insert(0, cs1, "v1") {
     Ok(_) => ()
     Err(_) => panic()
   }
   //| Same sequence again: leaf already exists at the end of the path.
   let cs2 = CallSequence::new()
-  ignore(cs2.insert(StrCall::S("a"), UInt128::{ hi: 0, lo: (10).to_uint64() }))
-  match tree.insert(UInt128::{ hi: 0, lo: 0 }, cs2, "v2") {
+  ignore(cs2.insert(StrCall::S("a"), (10).to_uint64()))
+  match tree.insert(0, cs2, "v2") {
     Err(AlreadyExists) => ()
     Ok(_) => panic()
     Err(MissingCall) => panic()
@@ -595,7 +595,7 @@ fn kinds_selfie(tester : TesterTracked) -> String {
       fn(rec : Recorder[TesterCall]) -> Recorder[TesterCall]? {
         tracked.attach(rec)
       },
-      fn(c : TesterCall) -> UInt128 {
+      fn(c : TesterCall) -> UInt64 {
         match c {
           SelfRef =>
             tracked.validate(
@@ -655,7 +655,7 @@ fn disabled(size : Int) -> Int {
     Input::new(
       fn() { hash_int(size) },
       fn(_rec : Recorder[UnitCall]) -> Recorder[UnitCall]? { None },
-      fn(_c : UnitCall) -> UInt128 { hash_zero() },
+      fn(_c : UnitCall) -> UInt64 { hash_zero() },
       fn(_c : UnitCall) -> Unit { () },
       fn(_prev : Recorder[UnitCall]?) -> Unit { () },
     ),
@@ -732,7 +732,7 @@ fn dump(emitter : EmitterTracked, value : String) -> Unit {
       fn(rec : Recorder[EmitterCall]) -> Recorder[EmitterCall]? {
         tracked.attach(rec)
       },
-      fn(c : EmitterCall) -> UInt128 {
+      fn(c : EmitterCall) -> UInt64 {
         match c {
           Emit(m) =>
             tracked.validate(
@@ -859,7 +859,7 @@ fn b(counter : CounterTracked) -> Unit {
       fn(rec : Recorder[CounterCall]) -> Recorder[CounterCall]? {
         tracked.attach(rec)
       },
-      fn(c : CounterCall) -> UInt128 {
+      fn(c : CounterCall) -> UInt64 {
         match c {
           Add(n) =>
             tracked.validate(
@@ -903,7 +903,7 @@ fn a(counter : CounterTracked, k : Int) -> Unit {
       fn(rec : Recorder[CounterCall]) -> Recorder[CounterCall]? {
         tracked.attach(rec)
       },
-      fn(c : CounterCall) -> UInt128 {
+      fn(c : CounterCall) -> UInt64 {
         match c {
           Add(n) =>
             tracked.validate(
@@ -1013,7 +1013,7 @@ fn chain_process(chain : ChainTracked, value : Int) -> Bool {
       fn(rec : Recorder[ChainCall]) -> Recorder[ChainCall]? {
         tracked.attach(rec)
       },
-      fn(c : ChainCall) -> UInt128 {
+      fn(c : ChainCall) -> UInt64 {
         match c {
           Contains(v) =>
             tracked.validate(
@@ -1110,7 +1110,7 @@ fn[T : Loader] LoaderTracked::load(
   self.t.call(
     LoaderCall::Load(path),
     fn(l : T) -> Array[Int] { l.load(path) },
-    fn(v : Array[Int]) -> UInt128 { test_hash_array(v, test_hash_int) },
+    fn(v : Array[Int]) -> UInt64 { test_hash_array(v, test_hash_int) },
   )
 }
 
@@ -1129,15 +1129,13 @@ fn[T : Loader] traity(loader : LoaderTracked[T], path : String) -> Array[Int] {
       fn(rec : Recorder[LoaderCall]) -> Recorder[LoaderCall]? {
         tracked.attach(rec)
       },
-      fn(c : LoaderCall) -> UInt128 {
+      fn(c : LoaderCall) -> UInt64 {
         match c {
           Load(p) =>
             tracked.validate(
               LoaderCall::Load(p),
               fn(l : T) -> Array[Int] { l.load(p) },
-              fn(v : Array[Int]) -> UInt128 {
-                test_hash_array(v, test_hash_int)
-              },
+              fn(v : Array[Int]) -> UInt64 { test_hash_array(v, test_hash_int) },
             )
         }
       },

@@ -20,13 +20,13 @@
 
 ///|
 /// 64-bit hash (low half of the 128-bit SipHash13).
-pub fn[T : RustHashable] hash(value : T) -> UInt128 {
+pub fn[T : RustHashable] hash(value : T) -> UInt64 {
   value.rust_hash()
 }
 
 ///|
 /// Full 128-bit SipHash13 as (low, high) u64s.
-pub fn[T : RustHashable] hash128(value : T) -> UInt128 {
+pub fn[T : RustHashable] hash128(value : T) -> UInt64 {
   value.rust_hash()
 }
 
@@ -37,37 +37,32 @@ pub fn[T : RustHashable] hash128(value : T) -> UInt128 {
 
 ///|
 /// murmur3 128-bit of a byte array (the core hashing primitive).
-pub fn hash_bytes(bytes : Array[Byte]) -> UInt128 {
+pub fn hash_bytes(bytes : Array[Byte]) -> UInt64 {
   let b : Bytes = Bytes::from_array(bytes)
-  sum128(b)
+  hash_bytes64(0UL, b)
 }
 
 ///|
-/// Zero UInt128 (test oracles that never hash).
-pub fn hash_zero() -> UInt128 {
-  UInt128::{ hi: 0, lo: 0 }
+/// Zero UInt64 (test oracles that never hash).
+pub fn hash_zero() -> UInt64 {
+  0UL
 }
 
 ///|
 /// Combine two 128-bit hashes into one (order-sensitive).
-pub fn hash_combine2(a : UInt128, b : UInt128) -> UInt128 {
-  let bytes : Array[Byte] = []
-  append_u64_le(bytes, a.hi)
-  append_u64_le(bytes, a.lo)
-  append_u64_le(bytes, b.hi)
-  append_u64_le(bytes, b.lo)
-  hash_bytes(bytes)
+pub fn hash_combine2(a : UInt64, b : UInt64) -> UInt64 {
+  hash_combine64(a, b)
 }
 
 ///|
 pub(open) trait RustHashable {
   fn write_rust(Self, Array[Byte]) -> Unit
-  fn rust_hash(Self) -> UInt128 = _
+  fn rust_hash(Self) -> UInt64 = _
 }
 
 ///|
 /// Default: hash = murmur3 128-bit over the streamed encoding.
-impl RustHashable with fn rust_hash(self) -> UInt128 {
+impl RustHashable with fn rust_hash(self) -> UInt64 {
   let bytes : Array[Byte] = []
   self.write_rust(bytes)
   hash_bytes(bytes)
@@ -75,39 +70,34 @@ impl RustHashable with fn rust_hash(self) -> UInt128 {
 
 ///|
 /// Concrete hashes for core types (cannot impl RustHashable).
-pub fn hash_int(v : Int) -> UInt128 {
-  sum128_i64_le(v.to_int64())
+pub fn hash_int(v : Int) -> UInt64 {
+  hash_int64(v)
 }
 
 ///|
-pub fn hash_string(s : String) -> UInt128 {
-  //| UTF-16 LE bytes (MoonBit's internal representation — no UTF-8
-  //| re-encode, one allocation, 16-byte-chunk murmur3 instead of
-  //| per-codepoint mixing).
-  sum128(s.to_bytes())
+pub fn hash_string(s : String) -> UInt64 {
+  hash_string64(s)
 }
 
 ///|
-pub fn hash_unit() -> UInt128 {
-  hash_bytes([(255).to_byte()])
+pub fn hash_unit() -> UInt64 {
+  hash_unit64()
 }
 
 ///|
 /// For use as a ret-hash function on `Unit` values (call_mut).
-pub fn hash_unit_value(_v : Unit) -> UInt128 {
+pub fn hash_unit_value(_v : Unit) -> UInt64 {
   hash_unit()
 }
 
 ///|
-pub fn hash_bool(v : Bool) -> UInt128 {
+pub fn hash_bool(v : Bool) -> UInt64 {
   hash_bytes([(if v { 1 } else { 0 }).to_byte()])
 }
 
 ///|
-pub fn hash_char(c : Char) -> UInt128 {
-  let bytes : Array[Byte] = []
-  write_rust_char(bytes, c)
-  hash_bytes(bytes)
+pub fn hash_char(c : Char) -> UInt64 {
+  hash_u64(0UL, c.to_int().to_uint64())
 }
 
 ///|
@@ -209,42 +199,41 @@ fn bytes_of_string_without_term(s : String) -> Array[Byte] {
 
 ///|
 /// path instead.
-pub fn test_hash_int(v : Int) -> UInt128 {
+pub fn test_hash_int(v : Int) -> UInt64 {
   hash_int(v)
 }
 
 ///|
-pub fn test_hash_int64(v : Int64) -> UInt128 {
+pub fn test_hash_int64(v : Int64) -> UInt64 {
   let b : Array[Byte] = []
   append_i64_le(b, v)
   hash_bytes(b)
 }
 
 ///|
-pub fn test_hash_bool(v : Bool) -> UInt128 {
+pub fn test_hash_bool(v : Bool) -> UInt64 {
   hash_bool(v)
 }
 
 ///|
-pub fn test_hash_str(v : String) -> UInt128 {
+pub fn test_hash_str(v : String) -> UInt64 {
   hash_string(v)
 }
 
 ///|
-pub fn test_hash_unit(v : Unit) -> UInt128 {
+pub fn test_hash_unit(v : Unit) -> UInt64 {
   hash_unit()
 }
 
 ///|
 /// Hash an Option by its tag + inner (deterministic, test-only).
-pub fn[T] test_hash_opt(v : T?, inner : (T) -> UInt128) -> UInt128 {
+pub fn[T] test_hash_opt(v : T?, inner : (T) -> UInt64) -> UInt64 {
   match v {
     None => hash_unit()
     Some(x) => {
       let h = inner(x)
       let bytes : Array[Byte] = []
-      append_u64_le(bytes, h.hi)
-      append_u64_le(bytes, h.lo)
+      append_u64_le(bytes, h)
       hash_bytes(bytes)
     }
   }
@@ -252,12 +241,11 @@ pub fn[T] test_hash_opt(v : T?, inner : (T) -> UInt128) -> UInt128 {
 
 ///|
 /// Hash an array by folding (deterministic, test-only).
-pub fn[T] test_hash_array(v : Array[T], inner : (T) -> UInt128) -> UInt128 {
+pub fn[T] test_hash_array(v : Array[T], inner : (T) -> UInt64) -> UInt64 {
   let bytes : Array[Byte] = []
   for x in v {
     let h = inner(x)
-    append_u64_le(bytes, h.hi)
-    append_u64_le(bytes, h.lo)
+    append_u64_le(bytes, h)
   }
   hash_bytes(bytes)
 }

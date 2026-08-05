@@ -12,7 +12,7 @@ fn eval(script : String, files : FilesTracked) -> Int {
       fn(rec : @lib.Recorder[FilesCall]) -> @lib.Recorder[FilesCall]? {
         tracked.attach(rec)
       },
-      fn(c : FilesCall) -> @lib.UInt128 {
+      fn(c : FilesCall) -> UInt64 {
         match c {
           Read(path) =>
             tracked.validate(

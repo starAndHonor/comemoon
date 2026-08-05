@@ -37,7 +37,7 @@ fn s3_input(
     fn(rec : Recorder[FilesCall]) -> Recorder[FilesCall]? {
       tracked.attach(rec)
     },
-    fn(c : FilesCall) -> UInt128 {
+    fn(c : FilesCall) -> UInt64 {
       match c {
         Read(path) =>
           tracked.validate(
@@ -89,7 +89,7 @@ fn s4_eval(script : String, files : FilesTracked) -> Int {
       fn(rec : Recorder[FilesCall]) -> Recorder[FilesCall]? {
         tracked.attach(rec)
       },
-      fn(c : FilesCall) -> UInt128 {
+      fn(c : FilesCall) -> UInt64 {
         match c {
           Read(path) =>
             tracked.validate(
@@ -216,7 +216,7 @@ fn s6_input(
     fn(rec : Recorder[G4CounterCall]) -> Recorder[G4CounterCall]? {
       st.attach(rec)
     },
-    fn(call : G4CounterCall) -> UInt128 {
+    fn(call : G4CounterCall) -> UInt64 {
       match call {
         Add(nn) =>
           st.validate(
@@ -273,7 +273,7 @@ fn s6_eval_unused(
       fn(rec : Recorder[G4CounterCall]) -> Recorder[G4CounterCall]? {
         st.attach(rec)
       },
-      fn(call : G4CounterCall) -> UInt128 {
+      fn(call : G4CounterCall) -> UInt64 {
         match call {
           Add(nn) =>
             st.validate(
@@ -376,7 +376,7 @@ fn s7_input(
         s.attach(rec),
       )
     },
-    fn(call : BundleCall) -> UInt128 {
+    fn(call : BundleCall) -> UInt64 {
       match call {
         WorldQuery(kk) =>
           w.validate(

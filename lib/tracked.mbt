@@ -67,8 +67,8 @@ pub fn[A, C] Tracked::attach(
   let prev = self.record.val
   self.record.val = Some(fn(
     call : C,
-    call_hash : UInt128,
-    ret : UInt128,
+    call_hash : UInt64,
+    ret : UInt64,
     mutable : Bool,
   ) -> Unit {
     recorder(call, call_hash, ret, mutable)
@@ -111,7 +111,7 @@ pub fn[A, C : RustHashable, R] Tracked::call(
   self : Tracked[A, C],
   call : C,
   f : (A) -> R,
-  ret_hash : (R) -> UInt128,
+  ret_hash : (R) -> UInt64,
 ) -> R {
   let ret = f(self.value.val)
   match self.record.val {
@@ -131,7 +131,7 @@ pub fn[A, C : RustHashable, R] Tracked::call_mut(
   self : Tracked[A, C],
   call : C,
   f : (A) -> R,
-  _ret_hash : (R) -> UInt128,
+  _ret_hash : (R) -> UInt64,
 ) -> R {
   let ret = f(self.value.val)
   match self.record.val {
@@ -158,8 +158,8 @@ pub fn[A, C : RustHashable, R] Tracked::validate(
   self : Tracked[A, C],
   call : C,
   f : (A) -> R,
-  ret_hash : (R) -> UInt128,
-) -> UInt128 {
+  ret_hash : (R) -> UInt64,
+) -> UInt64 {
   let call_hash = hash(call)
   match accelerator_get(self.id, call_hash) {
     Some(ret) => ret
@@ -241,8 +241,8 @@ pub fn[A, C] TrackedMut::attach(
   let prev = self.record.val
   self.record.val = Some(fn(
     call : C,
-    call_hash : UInt128,
-    ret : UInt128,
+    call_hash : UInt64,
+    ret : UInt64,
     mutable : Bool,
   ) -> Unit {
     recorder(call, call_hash, ret, mutable)
@@ -279,7 +279,7 @@ pub fn[A, C : RustHashable, R] TrackedMut::call_mut(
   self : TrackedMut[A, C],
   call : C,
   f : (A) -> R,
-  _ret_hash : (R) -> UInt128,
+  _ret_hash : (R) -> UInt64,
 ) -> R {
   let ret = f(self.value.val)
   match self.record.val {
@@ -299,7 +299,7 @@ pub fn[A, C : RustHashable, R] TrackedMut::call(
   self : TrackedMut[A, C],
   call : C,
   f : (A) -> R,
-  ret_hash : (R) -> UInt128,
+  ret_hash : (R) -> UInt64,
 ) -> R {
   let ret = f(self.value.val)
   match self.record.val {
@@ -321,8 +321,8 @@ pub fn[A, C : RustHashable, R] TrackedMut::validate(
   self : TrackedMut[A, C],
   call : C,
   f : (A) -> R,
-  ret_hash : (R) -> UInt128,
-) -> UInt128 {
+  ret_hash : (R) -> UInt64,
+) -> UInt64 {
   let call_hash = hash(call)
   match accelerator_get(self.id, call_hash) {
     Some(ret) => ret

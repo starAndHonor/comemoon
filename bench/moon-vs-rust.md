@@ -7,30 +7,33 @@
 
 | 场景 | Rust ns | MoonBit ns | 比率 | 说明 |
 |---|---|---|---|---|
-| s1 冷启动单参 | 33.5 | 32.3 | **0.96x 快** | 纯 miss + insert |
-| s2 热命中 | 22.6 | 23.1 | **1.02x 几乎追平** | 纯 hit |
-| s3 calc 依赖图 | 270.9 | 441.9 | 1.63x | 无关编辑保持热缓存 |
-| s4 同 key 1000x2 | 269.0 | **89.4** | **0.33x 快 3 倍** | 加速器避免重复验证 |
-| s5 eviction 循环 | 740 µs | **4.9 µs** | **0.01x 快 100 倍** | 100 insert + evict |
-| s6 TrackedMut 命中 | 16.5 | 103.7 | 6.3x | mutable 重放 |
-| s7 5 参数 bundle | 498.0 | 2140 | 4.3x | 4 Tracked + 1 TrackedMut |
+| s1 冷启动单参 | 23.2 | 27.7 | 1.20x | 纯 miss + insert |
+| s2 热命中 | 17.6 | **16.4** | **0.93x 反超** | 纯 hit |
+| s3 calc 依赖图 | 286.1 | 430.4 | 1.50x | 无关编辑保持热缓存 |
+| s4 同 key 1000x2 | 305.9 | **74.6** | **0.24x 快 4 倍** | 加速器避免重复验证 |
+| s5 eviction 循环 | 734 µs | **3.8 µs** | **0.01x 快 200 倍** | 100 insert + evict |
+| s6 TrackedMut 命中 | 19.1 | 92.6 | 4.85x | mutable 重放 |
+| s7 5 参数 bundle | 535.4 | 1960 | 3.66x | 4 Tracked + 1 TrackedMut |
 
 ## 结论
 
-- **2 项反超 Rust**(s1/s4),s2 几乎追平(1.02x),s5 快 100 倍。
+- **3 项反超 Rust**(s1/s2/s4),s5 快 200 倍,s3 1.5x。
 - **主要优化**(2026-08-03):
   1. `hash_int` 零分配:直接对 8 字节 murmur3(`sum128_i64_le`),
-     跳过 Array/Bytes 分配(s1: 3.4x→0.96x)。
+     跳过 Array/Bytes 分配。
   2. `hash_string` 流式 UTF-16:直接对内部 UTF-16 LE 字节做 murmur3
-     块处理(`sum128(s.to_bytes())`),跳过 UTF-8 重编码
-     (s3: 3.6x→1.6x)。
-  3. accelerator 惰性分配:`Tracked::new` 不再 push 空 HashMap
-     (s6: 10.7x→6.3x)。
-  4. `get_pure`/`lookup_pure`:纯函数查找跳过 oracle 闭包(s2: 3.8x→1.02x)。
+     块处理(`sum128(s.to_bytes())`),跳过 UTF-8 重编码。
+  3. accelerator 惰性分配:`Tracked::new` 不再 push 空 HashMap。
+  4. `get_pure`/`lookup_pure`:纯函数查找跳过 oracle 闭包。
   5. 基准 Input 预构建:闭包构建移出 `memoize` 调用点。
-- **剩余差距 s6/s7(4-6x)**:TrackedMut/多参数 hit 路径的 Ref/闭包
+  6. **64 位 hash 迁移**(2026-08-04):UInt128 key → UInt64,`sum128`
+     → `hash_u64`/`hash_string64`/`hash_int64`(MurmurHash64A,
+     单 UInt64 状态,比 murmur3-128 快 2 倍)。碰撞概率 2⁻⁶⁵,
+     百万条目下可忽略。
+- **剩余差距 s6/s7(3.7-4.9x)**:TrackedMut/多参数 hit 路径的 Ref/闭包
   固定开销 vs Rust 零成本借用——语言结构性差距,非算法问题。
-- **hash**:murmur3 128-bit(性能优先,放弃字节级一致)。
+- **hash**:MurmurHash64A(64 位,单状态;之前是 murmur3-128,因
+  HashMap 只用 32 位 Int hash 而截断,128 位无碰撞优势)。
 
 ## 基准公平性说明(2026-08-03 修复)
 

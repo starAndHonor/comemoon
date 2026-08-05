@@ -53,7 +53,7 @@ test "hash128_distinct" {
 ///|
 test "hash128_collision_free" {
   //| 10000 distinct integers, no 128-bit collision.
-  let seen : @hashmap.HashMap[UInt128, Unit] = @hashmap.HashMap([])
+  let seen : @hashmap.HashMap[UInt64, Unit] = @hashmap.HashMap([])
   let mut i = 0
   while i < 10000 {
     let h = hash_int(i)

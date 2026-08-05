@@ -5,7 +5,7 @@
 /// the oracle closure allocation.
 fn[C, O] Cache::lookup_pure(
   self : Cache[C, O],
-  key : UInt128,
+  key : UInt64,
 ) -> CacheEntry[C, O]? {
   match self.tree.get_pure(key) {
     Some(entry) => {
@@ -78,8 +78,8 @@ pub fn[C, O] Cache::evict(self : Cache[C, O], max_age : Int) -> Unit {
 /// Looks for a matching entry, resetting its age on hit.
 fn[C, O] Cache::lookup(
   self : Cache[C, O],
-  key : UInt128,
-  oracle : (C) -> UInt128,
+  key : UInt64,
+  oracle : (C) -> UInt64,
 ) -> CacheEntry[C, O]? {
   match self.tree.get(key, oracle) {
     Some(entry) => {
@@ -94,7 +94,7 @@ fn[C, O] Cache::lookup(
 /// Inserts an entry into the cache.
 fn[C : RustHashable, O] Cache::insert(
   self : Cache[C, O],
-  key : UInt128,
+  key : UInt64,
   constraint : Constraint[C],
   output : O,
 ) -> Result[Unit, InsertError] {

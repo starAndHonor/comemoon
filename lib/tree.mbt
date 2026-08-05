@@ -15,11 +15,11 @@ pub struct CallTree[C, T] {
   /// Leaf nodes, directly storing outputs.
   leaves : Slab[LeafNode[T]]
   /// The initial node for the given key hash.
-  mut start : @hashmap.HashMap[UInt128, Int]
+  mut start : @hashmap.HashMap[UInt64, Int]
   /// Maps from parent nodes to child nodes. The key is a pair of an inner
   ///| node ID and a return hash for that call. The value is the node to
   ///| transition to.
-  mut edges : @hashmap.HashMap[(Int, UInt128), Int]
+  mut edges : @hashmap.HashMap[(Int, UInt64), Int]
 }
 
 ///|
@@ -72,8 +72,8 @@ pub fn[C, T] CallTree::new() -> CallTree[C, T] {
 /// Retrieves the output value for the given key and oracle.
 pub fn[C, T] CallTree::get(
   self : CallTree[C, T],
-  key : UInt128,
-  oracle : (C) -> UInt128,
+  key : UInt64,
+  oracle : (C) -> UInt64,
 ) -> T? {
   let mut cursor : Int? = self.start.get(key)
   while cursor is Some(_) {
@@ -112,7 +112,7 @@ pub fn[C, T] CallTree::get(
 /// Retrieves the output value for a pure-argument key (no tracked calls):
 /// the tree path is a single leaf under `start[key]`, so no oracle is
 /// needed. Skips the oracle closure entirely (hot path: memoize_pure).
-pub fn[C, T] CallTree::get_pure(self : CallTree[C, T], key : UInt128) -> T? {
+pub fn[C, T] CallTree::get_pure(self : CallTree[C, T], key : UInt64) -> T? {
   match self.start.get(key) {
     Some(nid) =>
       if nid < 0 {
@@ -124,7 +124,7 @@ pub fn[C, T] CallTree::get_pure(self : CallTree[C, T], key : UInt128) -> T? {
         }
       } else {
         //| Has inner nodes (unexpected for pure): fall back to generic get.
-        self.get(key, fn(_c : C) -> UInt128 { hash_zero() })
+        self.get(key, fn(_c : C) -> UInt64 { hash_zero() })
       }
     None => None
   }
@@ -133,12 +133,12 @@ pub fn[C, T] CallTree::get_pure(self : CallTree[C, T], key : UInt128) -> T? {
 ///|
 pub fn[C : RustHashable, T] CallTree::insert(
   self : CallTree[C, T],
-  key : UInt128,
+  key : UInt64,
   sequence : CallSequence[C],
   value : T,
 ) -> Result[Unit, InsertError] {
   let mut cursor : Int? = self.start.get(key)
-  let mut predecessor : (Int, UInt128)? = None
+  let mut predecessor : (Int, UInt64)? = None
   let seq = sequence
 
   while true {
@@ -222,8 +222,8 @@ pub fn[C : RustHashable, T] CallTree::insert(
 fn[C, T] CallTree::link(
   self : CallTree[C, T],
   at_start : Bool,
-  key : UInt128,
-  from : (Int, UInt128)?,
+  key : UInt64,
+  from : (Int, UInt64)?,
   to : Int,
 ) -> Unit {
   if at_start {
@@ -278,7 +278,7 @@ pub fn[C, T] CallTree::retain(self : CallTree[C, T], f : (T) -> Bool) -> Unit {
   }
 
   //| Prune edges that point to removed nodes.
-  let new_edges : @hashmap.HashMap[(Int, UInt128), Int] = @hashmap.HashMap([])
+  let new_edges : @hashmap.HashMap[(Int, UInt64), Int] = @hashmap.HashMap([])
   self.edges.each((pair, node) => {
     if self.exists_node(node) {
       new_edges[pair] = node
@@ -287,7 +287,7 @@ pub fn[C, T] CallTree::retain(self : CallTree[C, T], f : (T) -> Bool) -> Unit {
   self.edges = new_edges
 
   //| Prune start entries that point to removed nodes.
-  let new_start : @hashmap.HashMap[UInt128, Int] = @hashmap.HashMap([])
+  let new_start : @hashmap.HashMap[UInt64, Int] = @hashmap.HashMap([])
   self.start.each((key, node) => {
     if self.exists_node(node) {
       new_start[key] = node

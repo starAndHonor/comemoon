@@ -19,7 +19,7 @@
 
 ///|
 /// call hashes to return hashes.
-let accelerators : Ref[Array[@hashmap.HashMap[UInt128, UInt128]]] = {
+let accelerators : Ref[Array[@hashmap.HashMap[UInt64, UInt64]]] = {
   val: Array::new(),
 }
 
@@ -51,7 +51,7 @@ pub fn evict_accelerators() -> Unit {
 
 ///|
 /// if present.
-pub fn accelerator_get(id : Int, call_hash : UInt128) -> UInt128? {
+pub fn accelerator_get(id : Int, call_hash : UInt64) -> UInt64? {
   if id >= 0 && id < accelerators.val.length() {
     accelerators.val[id].get(call_hash)
   } else {
@@ -63,8 +63,8 @@ pub fn accelerator_get(id : Int, call_hash : UInt128) -> UInt128? {
 /// Stores the return hash for a call hash on the given accelerator.
 pub fn accelerator_insert(
   id : Int,
-  call_hash : UInt128,
-  ret_hash : UInt128,
+  call_hash : UInt64,
+  ret_hash : UInt64,
 ) -> Unit {
   while accelerators.val.length() <= id {
     accelerators.val.push(@hashmap.HashMap([]))
