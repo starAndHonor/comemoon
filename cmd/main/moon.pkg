@@ -1,7 +1,7 @@
 pkgtype(kind: "executable")
 
 import {
-  "username/comemoon/lib",
+  "starAndHonor/comemoon/lib",
 }
 
 dev_build(

@@ -9,13 +9,13 @@
 //   "moonbitlang/x@0.4.6",
 // }
 
-name = "username/comemoon"
+name = "starAndHonor/comemoon"
 
 version = "0.1.0"
 
 readme = "README.mbt.md"
 
-repository = ""
+repository = "https://github.com/starAndHonor/comemoon"
 
 license = "Apache-2.0"
 
