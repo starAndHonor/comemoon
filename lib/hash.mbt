@@ -81,7 +81,10 @@ pub fn hash_int(v : Int) -> UInt128 {
 
 ///|
 pub fn hash_string(s : String) -> UInt128 {
-  sum128_codepoints(s.iter())
+  //| UTF-16 LE bytes (MoonBit's internal representation — no UTF-8
+  //| re-encode, one allocation, 16-byte-chunk murmur3 instead of
+  //| per-codepoint mixing).
+  sum128(s.to_bytes())
 }
 
 ///|

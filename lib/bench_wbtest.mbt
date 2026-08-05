@@ -28,9 +28,12 @@ let s3_cache : Cache[FilesCall, Int] = Cache::new()
 ///|
 /// Prebuilt input for the calc scenario: builds the closures once per
 /// `s3_eval` call instead of inline at each `memoize` call site.
-fn s3_input(tracked : Tracked[Files, FilesCall]) -> Input[FilesCall] {
+fn s3_input(
+  tracked : Tracked[Files, FilesCall],
+  script : String,
+) -> Input[FilesCall] {
   Input::new(
-    fn() { hash_zero() },
+    fn() { hash_string(script) },
     fn(rec : Recorder[FilesCall]) -> Recorder[FilesCall]? {
       tracked.attach(rec)
     },
@@ -53,7 +56,7 @@ fn s3_input(tracked : Tracked[Files, FilesCall]) -> Input[FilesCall] {
 ///|
 fn s3_eval(script : String, files : FilesTracked) -> Int {
   let tracked = files.t
-  memoize(s3_cache, s3_input(tracked), true, fn() {
+  memoize(s3_cache, s3_input(tracked, script), true, fn() {
     let mut total = 0
     let parts = script.split("+").to_array()
     let mut i = 0
@@ -153,12 +156,12 @@ test (b : @bench.T) {
   files.write("a.calc", "1 + eval b.calc")
   files.write("b.calc", "2 + 3")
   files.write("c.calc", "8 + 3")
+  let ft : FilesTracked = FilesTracked::new(files)
   let mut i = 0
   b.bench(
     fn() {
       files.write("c.calc", (i % 100).to_string() + " + 3")
       i = i + 1
-      let ft : FilesTracked = FilesTracked::new(files)
       b.keep(s3_eval("eval a.calc", ft))
     },
     count=10,
@@ -200,7 +203,68 @@ test (b : @bench.T) {
 let s6_cache : Cache[G4CounterCall, Int] = Cache::new()
 
 ///|
+
+///|
+/// Prebuilt input for the TrackedMut scenario: closures capture `st`
+/// (the per-round reborrow), built once per `s6_eval` call.
+fn s6_input(
+  st : TrackedMut[G4Counter, G4CounterCall],
+  n : Int,
+) -> Input[G4CounterCall] {
+  Input::new(
+    fn() { hash_int(n) },
+    fn(rec : Recorder[G4CounterCall]) -> Recorder[G4CounterCall]? {
+      st.attach(rec)
+    },
+    fn(call : G4CounterCall) -> UInt128 {
+      match call {
+        Add(nn) =>
+          st.validate(
+            G4CounterCall::Add(nn),
+            fn(s : G4Counter) -> Unit { s.add(nn) },
+            hash_unit_value,
+          )
+        Count =>
+          st.validate(
+            G4CounterCall::Count,
+            fn(s : G4Counter) -> Int { s.count() },
+            hash_int,
+          )
+      }
+    },
+    fn(call : G4CounterCall) -> Unit {
+      match call {
+        Add(nn) =>
+          st.call_mut(
+            G4CounterCall::Add(nn),
+            fn(s : G4Counter) -> Unit { s.add(nn) },
+            hash_unit_value,
+          )
+        Count => ()
+      }
+    },
+    fn(prev : Recorder[G4CounterCall]?) -> Unit { st.detach(prev) },
+  )
+}
+
+///|
 fn s6_eval(n : Int, counter : TrackedMut[G4Counter, G4CounterCall]) -> Int {
+  let st = counter
+  memoize(s6_cache, s6_input(st, n), true, fn() {
+    st.call_mut(
+      G4CounterCall::Add(n),
+      fn(s : G4Counter) -> Unit { s.add(n) },
+      hash_unit_value,
+    )
+    n
+  })
+}
+
+///|
+fn s6_eval_unused(
+  n : Int,
+  counter : TrackedMut[G4Counter, G4CounterCall],
+) -> Int {
   let st = counter
   memoize(
     s6_cache,
@@ -252,12 +316,13 @@ fn s6_eval(n : Int, counter : TrackedMut[G4Counter, G4CounterCall]) -> Int {
 
 ///|
 test (b : @bench.T) {
-  let mut c : G4Counter = { total: 0 }
-  let mut i = 0
+  let c : G4Counter = { total: 0 }
   let tm : TrackedMut[G4Counter, G4CounterCall] = TrackedMut::new(c)
+  let mut i = 0
   b.bench(
     fn() {
-      c = { total: i }
+      //| Mutate the underlying value (like Rust's `counter.0 = i`).
+      tm.get().total = i
       i = i + 1
       let tmr = tm.reborrow_mut()
       b.keep(s6_eval(1, tmr))
@@ -283,6 +348,7 @@ fn s7_input(
   t : Tracked[G5Traced, BundleCall],
   r : Tracked[G5Route, BundleCall],
   s : TrackedMut[G5Sink, BundleCall],
+  k : Int,
 ) -> Input5[
   BundleCall,
   BundleCall,
@@ -292,7 +358,7 @@ fn s7_input(
   BundleCall,
 ] {
   Input5::new(
-    fn() { hash_zero() },
+    fn() { hash_int(k) },
     fn(
       rec : Recorder[BundleCall],
     ) -> (
@@ -382,7 +448,7 @@ fn s7_eval(
   s : TrackedMut[G5Sink, BundleCall],
   k : Int,
 ) -> Int {
-  memoize5(s7_cache, s7_input(w, i, t, r, s), true, fn() {
+  memoize5(s7_cache, s7_input(w, i, t, r, s, k), true, fn() {
     s.call_mut(
       BundleCall::SinkPush(k),
       fn(x : G5Sink) -> Unit { x.push(k) },

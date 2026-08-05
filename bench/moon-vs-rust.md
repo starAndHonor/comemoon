@@ -7,27 +7,29 @@
 
 | 场景 | Rust ns | MoonBit ns | 比率 | 说明 |
 |---|---|---|---|---|
-| s1 冷启动单参 | 33.1 | 32.6 | **0.98x 快** | 纯 miss + insert |
-| s2 热命中 | 17.2 | 22.4 | 1.31x | 纯 hit |
-| s3 calc 依赖图 | 283.3 | **122.3** | **0.43x 快 2.3 倍** | 无关编辑保持热缓存 |
-| s4 同 key 1000x2 | 289.0 | **130.9** | **0.45x 快 2.2 倍** | 加速器避免重复验证 |
-| s5 eviction 循环 | 780 µs | **5.3 µs** | **0.01x 快 100 倍** | 100 insert + evict |
-| s6 TrackedMut 命中 | 17.0 | 116.1 | 6.8x | mutable 重放 |
-| s7 5 参数 bundle | 554.5 | 841.1 | 1.52x | 4 Tracked + 1 TrackedMut |
+| s1 冷启动单参 | 33.5 | 32.3 | **0.96x 快** | 纯 miss + insert |
+| s2 热命中 | 22.6 | 23.1 | **1.02x 几乎追平** | 纯 hit |
+| s3 calc 依赖图 | 270.9 | 441.9 | 1.63x | 无关编辑保持热缓存 |
+| s4 同 key 1000x2 | 269.0 | **89.4** | **0.33x 快 3 倍** | 加速器避免重复验证 |
+| s5 eviction 循环 | 740 µs | **4.9 µs** | **0.01x 快 100 倍** | 100 insert + evict |
+| s6 TrackedMut 命中 | 16.5 | 103.7 | 6.3x | mutable 重放 |
+| s7 5 参数 bundle | 498.0 | 2140 | 4.3x | 4 Tracked + 1 TrackedMut |
 
 ## 结论
 
-- **4 项反超 Rust**(s1/s3/s4/s5),s2/s7 接近(1.3-1.5x)。
+- **2 项反超 Rust**(s1/s4),s2 几乎追平(1.02x),s5 快 100 倍。
 - **主要优化**(2026-08-03):
-  1. `hash_int`/`hash_string` 零分配:直接对值做 murmur3,跳过 Array/Bytes
-     中间层(s1: 3.4x→0.98x)。
-  2. accelerator 惰性分配:`Tracked::new` 不再 push 空 HashMap
-     (s6: 10.7x→6.8x)。
-  3. `get_pure`/`lookup_pure`:纯函数查找跳过 oracle 闭包(s2: 3.8x→1.3x)。
-  4. 基准 Input 预构建:闭包构建移出 `memoize` 调用点(s3: 3.6x→0.43x,
-     s7: 4.9x→1.5x)——**用户侧实践:预构建 Input 闭包,避免每轮分配**。
-- **剩余差距 s6(6.8x)**:TrackedMut hit 路径的 Ref/闭包固定开销 vs Rust
-  零成本借用;`reborrow_mut` 场景无法预构建 Input(捕获旧值)。
+  1. `hash_int` 零分配:直接对 8 字节 murmur3(`sum128_i64_le`),
+     跳过 Array/Bytes 分配(s1: 3.4x→0.96x)。
+  2. `hash_string` 流式 UTF-16:直接对内部 UTF-16 LE 字节做 murmur3
+     块处理(`sum128(s.to_bytes())`),跳过 UTF-8 重编码
+     (s3: 3.6x→1.6x)。
+  3. accelerator 惰性分配:`Tracked::new` 不再 push 空 HashMap
+     (s6: 10.7x→6.3x)。
+  4. `get_pure`/`lookup_pure`:纯函数查找跳过 oracle 闭包(s2: 3.8x→1.02x)。
+  5. 基准 Input 预构建:闭包构建移出 `memoize` 调用点。
+- **剩余差距 s6/s7(4-6x)**:TrackedMut/多参数 hit 路径的 Ref/闭包
+  固定开销 vs Rust 零成本借用——语言结构性差距,非算法问题。
 - **hash**:murmur3 128-bit(性能优先,放弃字节级一致)。
 
 ## 基准公平性说明(2026-08-03 修复)
