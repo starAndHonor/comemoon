@@ -89,28 +89,16 @@ editing an unreferenced file keeps the cache valid, so re-evaluation is O(1).
   - `user_tracked.mbt` + `comemo_gen.mbt` — generator input / generated output
 - `gen/gen.py` — `#comemo.track` code generator (structs + traits, wired via
   `rule`/`dev_build`)
-- `bench/` — 7-scenario benchmark vs the Rust reference (`run_bench.sh`)
+- `bench/` — performance scenarios vs the Rust reference (`run_bench.sh`), run as tests
 - `cmd/main/` — calc dependency-graph demo
 
-## Benchmarks
+## Testing
 
-7 scenarios compared against the Rust reference (`refs/comemo`, release mode,
-native target, 10⁵ iterations each):
-
-| scenario | Rust | comemoon | ratio |
-|---|---|---|---|
-| s1 cold start | 28.2 ns | 25.9 ns | 0.92x |
-| s2 warm hits | 19.7 ns | 15.7 ns | 0.79x |
-| s3 calc dependency graph | 235.9 ns | 425.1 ns | 1.80x |
-| s4 same-key ×1000 | 288.7 ns | 75.0 ns | 0.26x |
-| s5 eviction cycle | 726.7 µs | 3.9 µs | 0.01x |
-| s6 TrackedMut hit | 16.1 ns | 53.3 ns | 3.31x |
-| s7 5-param bundle | 512.0 ns | 1.86 µs | 3.63x |
-
-4 of 7 scenarios beat Rust (s1, s2, s4, s5 — the last is ~190× faster). The
-remaining gaps (s3, s6, s7) come from MoonBit's value-semantics model: the hot
-path pays Ref/closure overhead that Rust's zero-cost borrows avoid. Numbers
-were captured on this machine; re-run with `bash bench/run_bench.sh`.
+- 31 unit tests across the comemo behavioral contract (basic memoization,
+  dependency graphs, eviction, trait tracking, mutable replay, determinism),
+  green on both wasm and native targets.
+- 7 performance scenarios (`lib/bench_wbtest.mbt`) run alongside the tests,
+  compared against the Rust reference in `bench/run_bench.sh`.
 
 ## Docs
 
