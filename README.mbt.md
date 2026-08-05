@@ -68,5 +68,10 @@ against it directly without running the generator.
 
 ## License
 
-Apache-2.0. The reference implementation (`refs/comemo/`) is dual-licensed
-MIT/Apache-2.0.
+This project is licensed under Apache-2.0.
+
+It is a port of [`comemo`](https://github.com/typst/comemo), which is
+dual-licensed MIT OR Apache-2.0. The ported code retains that dual licensing
+for the parts derived from the original; see `refs/comemo/LICENSE-APACHE` and
+`refs/comemo/LICENSE-MIT`. The reference implementation is vendored under
+`refs/comemo/` (Apache-2.0 + MIT) and `refs/typst/` (Apache-2.0).
