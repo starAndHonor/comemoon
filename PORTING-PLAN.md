@@ -61,7 +61,7 @@ fn evaluate(script : String, files : Files) -> Int {
 
 **必须保留的语义**:键 = 参数哈希 + 调用序列;顺序无关的不可变调用集验证;`TrackedMut` 可变调用命中后重放;`enabled` 绕过;age 驱逐(evict 同时清空加速器);debug panic(非确定性、不纯 tracked 方法);递归 memoize 命中同一缓存。
 
-**UInt128 迁移计划(2026-08-02)**:hash 从 64-bit SipHash13 切换到 128-bit murmur3(性能快 13x,保留 128-bit 键)。完整文件清单与分层推进步骤见 **`MIGRATION-UINT128.md`**。
+**hash 方案**:murmur3,后经性能优化迁移到 MurmurHash64A(64 位零分配)。
 
 **GAP 修复(2026-08-02,对齐 comemo 最新版)**:见 `GAP-PLAN.md`。
 - G1 多 tracked 参数 ✅:`Input2`/`memoize2` + 合并 Call 枚举(对齐 Typst `compile_impl` 的 world+traced)
@@ -117,7 +117,7 @@ comemoon/
 
 ## 开发顺序建议
 
-> 总体迁移路线图(阶段划分、测试契约映射、风险、完成定义)见 **`MIGRATION-PLAN.md`**。本节仅列模块级顺序:
+> 本节列模块级顺序:
 
 1. `hash.mbt`(SipHash13)+ `tree.mbt`(CallTree):纯数据结构、无宏依赖,先落地并用 Rust 的 `test_call_tree`/`test_call_tree_quickcheck` 语义验证
 2. `constraint.mbt`(CallSequence)+ `tracked.mbt`(Tracked + helper):核心跟踪机制

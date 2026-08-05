@@ -72,7 +72,6 @@ is N/A (internal borrows use `Ref`).
 
 - `AGENTS.md` — repository guidelines
 - `PORTING-PLAN.md` — technical porting decisions (incl. no-proc-macro design)
-- `MIGRATION-PLAN.md` — phase roadmap and test-contract mapping
 - `GAP-PLAN.md` — gap analysis vs latest comemo + Typst usage (G1-G6)
 - `bench/moon-vs-rust.md` — benchmark methodology and results
 

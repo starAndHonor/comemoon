@@ -62,7 +62,6 @@ Core components (Rust names — the MoonBit rewrite must provide equivalents):
 | `refs/comemo/examples/` | `basic.rs` (plain memoization), `calc.rs` (tracked dependency graph). |
 | `NovaForge-Output-comemo/` | Typst study notes on comemo internals (5 chapters + appendix) — useful when porting. |
 | `PORTING-PLAN.md` | 技术方案:无宏 codegen 决策、运行时模块设计、生成器架构。 |
-| `MIGRATION-PLAN.md` | 总体迁移路线图:7 个阶段、18 个测试契约映射表、风险、完成定义。 |
 | `lib/` | MoonBit 运行时库(唯一包):核心算法 + 测试 + 生成器输入/输出。 |
 | `gen/gen.py` | `#comemo.track` 代码生成器(dev_build 触发)。 |
 | `bench/` | 基准脚本(run_bench.sh)+ 对比报告。 |
