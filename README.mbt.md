@@ -13,27 +13,19 @@ incremental computation possible.
 
 ## Features
 
-- **Fine-grained invalidation**: only *actually-read* tracked data
-  invalidates. A function re-runs only when the data it touched has changed.
-- **Mutable tracked calls** (`TrackedMut`): side effects recorded during
-  computation are replayed on cache hit, with downgrade / reborrow /
-  track_mut views.
+- **Fine-grained invalidation**: only *actually-read* tracked data invalidates.
+- **Mutable tracked calls** (`TrackedMut`): side effects replayed on cache hit,
+  with downgrade / reborrow / track_mut views.
 - **Trait tracking**: `#comemo.track` on a trait generates a generic surface
-  (`WorldTracked[T]` with `fn[T : World]` bounds) — the pattern used by
-  Typst's `World` trait.
-- **Multi-parameter memoization**: 1–6 tracked parameters (`Input2`..`Input6`
-  / `memoize2`..`memoize6`), covering every arity used in Typst.
-- **Validation accelerator**: per-instance call-to-return-hash cache gives O(1)
+  (`WorldTracked[T]` with `fn[T : World]` bounds).
+- **Multi-parameter memoization**: 1–6 tracked parameters (`memoize2`..`memoize6`).
+- **Validation accelerator**: per-instance call-to-return-hash cache, O(1)
   revalidation.
-- **Age-based eviction**: `evict(max_age)` prunes stale entries; recursion
-  shares the per-function cache.
-- **No proc macros**: `#comemo.track`-annotated types and traits are expanded
-  by a build-time generator (`gen/gen.py`) wired through MoonBit's official
-  `rule` / `dev_build` hooks.
+- **Age-based eviction**; recursion shares the per-function cache.
+- **No proc macros**: `#comemo.track` types and traits are expanded by a
+  build-time generator (`gen/gen.py`) via MoonBit's `rule` / `dev_build` hooks.
 
 ## Quick start
-
-Define a tracked type, annotate it, and mark the methods you want tracked:
 
 ```mbt nocheck
 #comemo.track
@@ -52,10 +44,9 @@ pub fn Files::write(self : Files, path : String, text : String) -> Unit {
 }
 ```
 
-The generator (triggered by `moon check` / `moon test` via the `dev_build`
-hook) emits a Call enum, hash impls, and a `FilesTracked` surface wrapper into
-`comemo_gen.mbt`, which is committed to the repo. Then memoize a function over
-the tracked value:
+The generator (triggered by `moon check` / `moon test`) emits a Call enum,
+hash impls, and a `FilesTracked` surface wrapper into `comemo_gen.mbt`
+(committed). Then memoize over the tracked value:
 
 ```mbt nocheck
 fn eval(script : String, files : FilesTracked) -> Int {
@@ -72,41 +63,26 @@ fn eval(script : String, files : FilesTracked) -> Int {
 }
 ```
 
-The `.calc` dependency-graph demo in `cmd/main/` shows the full pattern:
-editing an unreferenced file keeps the cache valid, so re-evaluation is O(1).
+The `.calc` dependency-graph demo in `cmd/main/` shows the full pattern.
 
 ## Layout
 
-- `lib/` — the runtime library (single package)
-  - `hash.mbt` — MurmurHash64A hashing + Rust-style `Hash` encodings
-  - `murmur3_hash64.mbt` — 64-bit MurmurHash64A (zero-allocation)
-  - `tree.mbt` — `CallTree` trie + free-list arena
-  - `constraint.mbt` — `CallSequence` (dedup) + `Constraint` (immutable/mutable)
-  - `tracked.mbt` — `Tracked` / `TrackedMut` wrappers (Ref-based, MergedSink chaining)
-  - `cache.mbt` — per-function `Cache` with age-based eviction
-  - `memoize.mbt` — `memoize`/`memoize_pure` + `Input2`..`Input6`/`memoize2`..`memoize6`
-  - `accelerate.mbt` — per-instance validation accelerator
-  - `user_tracked.mbt` + `comemo_gen.mbt` — generator input / generated output
-- `gen/gen.py` — `#comemo.track` code generator (structs + traits, wired via
-  `rule`/`dev_build`)
+- `lib/` — runtime library: `hash.mbt` (MurmurHash64A), `tree.mbt`
+  (CallTree), `constraint.mbt`, `tracked.mbt` (`Tracked`/`TrackedMut`),
+  `cache.mbt`, `memoize.mbt` (`memoize`..`memoize6`), `accelerate.mbt`,
+  `user_tracked.mbt` + `comemo_gen.mbt` (generator input / output)
+- `gen/gen.py` — `#comemo.track` code generator (structs + traits)
 - `cmd/main/` — calc dependency-graph demo
 
 ## Testing
 
-- 31 unit tests across the comemo behavioral contract (basic memoization,
-  dependency graphs, eviction, trait tracking, mutable replay, determinism),
-  green on both wasm and native targets.
-
-## Docs
-
-- `AGENTS.md` — repository guidelines
+31 unit tests across the comemo behavioral contract (basic memoization,
+dependency graphs, eviction, trait tracking, mutable replay, determinism),
+green on both wasm and native targets.
 
 ## License
 
-This project is licensed under Apache-2.0.
-
-It is a port of [`comemo`](https://github.com/typst/comemo), which is
-dual-licensed MIT OR Apache-2.0. The ported code retains that dual licensing
-for the parts derived from the original; see `refs/comemo/LICENSE-APACHE` and
-`refs/comemo/LICENSE-MIT`. The reference implementation is vendored under
-`refs/comemo/` (Apache-2.0 + MIT) and `refs/typst/` (Apache-2.0).
+Apache-2.0. A port of [`comemo`](https://github.com/typst/comemo)
+(MIT OR Apache-2.0); derived code retains that dual licensing, see
+`refs/comemo/LICENSE-APACHE` and `refs/comemo/LICENSE-MIT`. The reference
+implementation is vendored under `refs/comemo/` and `refs/typst/`.
