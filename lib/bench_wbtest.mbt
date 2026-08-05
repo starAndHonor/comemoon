@@ -249,15 +249,47 @@ fn s6_input(
 
 ///|
 fn s6_eval(n : Int, counter : TrackedMut[G4Counter, G4CounterCall]) -> Int {
-  let st = counter
-  memoize(s6_cache, s6_input(st, n), true, fn() {
-    st.call_mut(
-      G4CounterCall::Add(n),
-      fn(s : G4Counter) -> Unit { s.add(n) },
-      hash_unit_value,
-    )
-    n
-  })
+  memoize_tracked_mut(
+    s6_cache,
+    hash_int(n),
+    counter,
+    fn(call : G4CounterCall) -> UInt64 {
+      match call {
+        Add(nn) =>
+          counter.validate(
+            G4CounterCall::Add(nn),
+            fn(s : G4Counter) -> Unit { s.add(nn) },
+            hash_unit_value,
+          )
+        Count =>
+          counter.validate(
+            G4CounterCall::Count,
+            fn(s : G4Counter) -> Int { s.count() },
+            hash_int,
+          )
+      }
+    },
+    fn(call : G4CounterCall) -> Unit {
+      match call {
+        Add(nn) =>
+          counter.call_mut(
+            G4CounterCall::Add(nn),
+            fn(s : G4Counter) -> Unit { s.add(nn) },
+            hash_unit_value,
+          )
+        Count => ()
+      }
+    },
+    true,
+    fn(st : TrackedMut[G4Counter, G4CounterCall]) {
+      st.call_mut(
+        G4CounterCall::Add(n),
+        fn(s : G4Counter) -> Unit { s.add(n) },
+        hash_unit_value,
+      )
+      n
+    },
+  )
 }
 
 ///|

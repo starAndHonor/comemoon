@@ -490,3 +490,51 @@ pub fn[
   register_miss()
   output
 }
+
+///|
+/// Specialized memoize for a single TrackedMut parameter (hot path for
+/// Typst's sink pattern). Inlines the lookup + attach + replay logic to
+/// avoid the generic `Input` closure allocation.
+pub fn[C : RustHashable, A, O] memoize_tracked_mut(
+  cache : Cache[C, O],
+  key : UInt64,
+  tm : TrackedMut[A, C],
+  oracle : (C) -> UInt64,
+  replay_mut : (C) -> Unit,
+  enabled : Bool,
+  func : (TrackedMut[A, C]) -> O,
+) -> O {
+  if !enabled {
+    register_miss()
+    return func(tm)
+  }
+  let lookup_res = cache.lookup(key, oracle)
+  match lookup_res {
+    Some(entry) => {
+      //| Replay mutations.
+      for call in entry.mutable {
+        replay_mut(call)
+      }
+      register_hit()
+      return entry.output
+    }
+    None => ()
+  }
+  let constraint = Constraint::new()
+  let prev = tm.attach(fn(
+    call : C,
+    call_hash : UInt64,
+    ret : UInt64,
+    mutable : Bool,
+  ) -> Unit {
+    constraint.record(call, call_hash, ret, mutable)
+  })
+  let output = func(tm)
+  tm.detach(prev)
+  match cache.insert(key, constraint, output) {
+    Ok(_) => ()
+    Err(_) => ()
+  }
+  register_miss()
+  output
+}

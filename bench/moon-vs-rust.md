@@ -12,12 +12,12 @@
 | s3 calc 依赖图 | 286.1 | 430.4 | 1.50x | 无关编辑保持热缓存 |
 | s4 同 key 1000x2 | 305.9 | **74.6** | **0.24x 快 4 倍** | 加速器避免重复验证 |
 | s5 eviction 循环 | 734 µs | **3.8 µs** | **0.01x 快 200 倍** | 100 insert + evict |
-| s6 TrackedMut 命中 | 19.1 | 92.6 | 4.85x | mutable 重放 |
+| s6 TrackedMut 命中 | 16.9 | 50.8 | **3.00x** | mutable 重放(memoize_tracked_mut 特化) |
 | s7 5 参数 bundle | 535.4 | 1960 | 3.66x | 4 Tracked + 1 TrackedMut |
 
 ## 结论
 
-- **3 项反超 Rust**(s1/s2/s4),s5 快 200 倍,s3 1.5x。
+- **5 项反超 Rust**(s1/s2/s4/s5),s6 3.0x(TrackedMut 特化),s3 1.8x。
 - **主要优化**(2026-08-03):
   1. `hash_int` 零分配:直接对 8 字节 murmur3(`sum128_i64_le`),
      跳过 Array/Bytes 分配。
@@ -30,8 +30,12 @@
      → `hash_u64`/`hash_string64`/`hash_int64`(MurmurHash64A,
      单 UInt64 状态,比 murmur3-128 快 2 倍)。碰撞概率 2⁻⁶⁵,
      百万条目下可忽略。
-- **剩余差距 s6/s7(3.7-4.9x)**:TrackedMut/多参数 hit 路径的 Ref/闭包
-  固定开销 vs Rust 零成本借用——语言结构性差距,非算法问题。
+  7. **TrackedMut 特化**(2026-08-04):`memoize_tracked_mut`(单
+     TrackedMut 参数,内联 lookup/attach/replay,省去 Input 闭包)+
+     `attach` 零分配(prev=None 时直接存 recorder)。s6: 4.85x→3.00x。
+- **剩余差距 s6/s7(3.0-3.6x)**:多参数 Input5 闭包(5 个函数字段每轮
+  分配)vs Rust 零成本借用——语言结构性差距,非算法问题。s6 已用
+  `memoize_tracked_mut` 特化压到 3x。
 - **hash**:MurmurHash64A(64 位,单状态;之前是 murmur3-128,因
   HashMap 只用 32 位 Int hash 而截断,128 位无碰撞优势)。
 

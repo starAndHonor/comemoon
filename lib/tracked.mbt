@@ -65,18 +65,23 @@ pub fn[A, C] Tracked::attach(
   recorder : Recorder[C],
 ) -> Recorder[C]? {
   let prev = self.record.val
-  self.record.val = Some(fn(
-    call : C,
-    call_hash : UInt64,
-    ret : UInt64,
-    mutable : Bool,
-  ) -> Unit {
-    recorder(call, call_hash, ret, mutable)
-    match prev {
-      Some(p) => p(call, call_hash, ret, mutable)
-      None => ()
-    }
-  })
+  match prev {
+    None =>
+      //| No enclosing memoized call: store the recorder directly (no
+      //| closure allocation on the hot path).
+      self.record.val = Some(recorder)
+    Some(p) =>
+      //| Nested memoized call: chain to the outer recorder (MergedSink).
+      self.record.val = Some(fn(
+        call : C,
+        call_hash : UInt64,
+        ret : UInt64,
+        mutable : Bool,
+      ) -> Unit {
+        recorder(call, call_hash, ret, mutable)
+        p(call, call_hash, ret, mutable)
+      })
+  }
   prev
 }
 
@@ -239,18 +244,23 @@ pub fn[A, C] TrackedMut::attach(
   recorder : Recorder[C],
 ) -> Recorder[C]? {
   let prev = self.record.val
-  self.record.val = Some(fn(
-    call : C,
-    call_hash : UInt64,
-    ret : UInt64,
-    mutable : Bool,
-  ) -> Unit {
-    recorder(call, call_hash, ret, mutable)
-    match prev {
-      Some(p) => p(call, call_hash, ret, mutable)
-      None => ()
-    }
-  })
+  match prev {
+    None =>
+      //| No enclosing memoized call: store the recorder directly (no
+      //| closure allocation on the hot path).
+      self.record.val = Some(recorder)
+    Some(p) =>
+      //| Nested memoized call: chain to the outer recorder (MergedSink).
+      self.record.val = Some(fn(
+        call : C,
+        call_hash : UInt64,
+        ret : UInt64,
+        mutable : Bool,
+      ) -> Unit {
+        recorder(call, call_hash, ret, mutable)
+        p(call, call_hash, ret, mutable)
+      })
+  }
   prev
 }
 
