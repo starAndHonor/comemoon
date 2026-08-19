@@ -7,7 +7,7 @@
 受约束记忆化的增量计算库 —— 把 Rust 生态中 typst 使用的 comemo 移植到 MoonBit。
 
 [![CI](https://github.com/starAndHonor/comemoon/actions/workflows/ci.yml/badge.svg)](https://github.com/starAndHonor/comemoon/actions/workflows/ci.yml)
-[![mooncakes.io](https://img.shields.io/badge/mooncakes-0.1.0-blue)](https://mooncakes.io/docs/starAndHonor/comemoon)
+[![mooncakes.io](https://img.shields.io/badge/mooncakes-0.1.1-blue)](https://mooncakes.io/docs/starAndHonor/comemoon)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-31%20passed-brightgreen)](#testing)
 
