@@ -44,6 +44,7 @@ options(
     "cmd",
     "AGENTS.md",
     "SUBMISSION.md",
+    "CHANGELOG.md",
     "MIGRATION-*.md",
     "PORTING-PLAN.md",
     "GAP-PLAN.md",
